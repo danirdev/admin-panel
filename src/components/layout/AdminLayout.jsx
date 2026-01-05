@@ -5,11 +5,17 @@ import {
 } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { supabase } from '../../supabase';
+
 const AdminLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -97,7 +103,10 @@ const AdminLayout = () => {
         </nav>
 
         <div className="p-4 border-t border-gray-800 shrink-0">
-           <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-gray-900 transition-all justify-start">
+           <button 
+             onClick={handleLogout}
+             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-gray-900 transition-all justify-start"
+           >
               <LogOut className="w-5 h-5 shrink-0" />
               {(!isDesktop || isSidebarOpen) && <span className="font-bold whitespace-nowrap">Cerrar Sesión</span>}
            </button>
