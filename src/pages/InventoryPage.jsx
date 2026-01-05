@@ -16,6 +16,7 @@ const InventoryPage = () => {
     precio_venta: '',
     precio_costo: '',
     stock_actual: '',
+    stock_minimo: 5, // Valor por defecto
     categoria: 'Escolar',
     sku: '',
     imagen_url: null // Aquí guardaremos la URL
@@ -82,6 +83,7 @@ const InventoryPage = () => {
         precio_venta: parseFloat(nuevoProducto.precio_venta),
         precio_costo: parseFloat(nuevoProducto.precio_costo) || 0,
         stock_actual: parseInt(nuevoProducto.stock_actual) || 0,
+        stock_minimo: parseInt(nuevoProducto.stock_minimo) || 5,
         categoria: nuevoProducto.categoria,
         sku: nuevoProducto.sku || null,
         imagen_url: nuevoProducto.imagen_url // Guardamos la URL
@@ -93,7 +95,7 @@ const InventoryPage = () => {
     } else {
       setIsModalOpen(false);
       fetchProductos();
-      setNuevoProducto({ nombre: '', precio_venta: '', precio_costo: '', stock_actual: '', categoria: 'Escolar', sku: '', imagen_url: null });
+      setNuevoProducto({ nombre: '', precio_venta: '', precio_costo: '', stock_actual: '', stock_minimo: 5, categoria: 'Escolar', sku: '', imagen_url: null });
     }
   }
 
@@ -220,8 +222,16 @@ const InventoryPage = () => {
                    <input type="number" value={nuevoProducto.precio_venta} onChange={e => setNuevoProducto({...nuevoProducto, precio_venta: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
                 </div>
                 <div>
-                   <label className="block text-sm font-bold mb-1">Stock</label>
+                   <label className="block text-sm font-bold mb-1">Stock Actual</label>
                    <input type="number" value={nuevoProducto.stock_actual} onChange={e => setNuevoProducto({...nuevoProducto, stock_actual: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
+                </div>
+                <div>
+                   <label className="block text-sm font-bold mb-1">Costo (Privado)</label>
+                   <input type="number" value={nuevoProducto.precio_costo} onChange={e => setNuevoProducto({...nuevoProducto, precio_costo: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
+                </div>
+                <div>
+                   <label className="block text-sm font-bold mb-1">Stock Mínimo</label>
+                   <input type="number" value={nuevoProducto.stock_minimo} onChange={e => setNuevoProducto({...nuevoProducto, stock_minimo: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
                 </div>
                  <div className="col-span-2">
                    <label className="block text-sm font-bold mb-1">Categoría</label>
