@@ -1,17 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Save, Image as ImageIcon } from 'lucide-react';
 import { AdminButton, Card, Badge } from '../components/common/UI';
-
-const MOCK_INVENTARIO = [
-  { id: 1, nombre: "Cuaderno Universitario", precio: 4500, costo: 2800, stock: 24, categoria: "Escolar", sku: "CUA-001" },
-  { id: 2, nombre: "Set de Geometría", precio: 1200, costo: 600, stock: 5, categoria: "Escolar", sku: "GEO-002" },
-  { id: 3, nombre: "Resma A4 500h", precio: 6500, costo: 4500, stock: 50, categoria: "Oficina", sku: "PAP-003" },
-  { id: 4, nombre: "Bolígrafo Azul", precio: 400, costo: 150, stock: 120, categoria: "Escolar", sku: "BOL-004" },
-  { id: 5, nombre: "Mochila Básica", precio: 25000, costo: 12000, stock: 0, categoria: "Escolar", sku: "MOC-005" },
-];
+import { supabase } from '../supabase';
 
 const InventoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [productos, setProductos] = useState([]);
+
+  useEffect(() => {
+    async function loadInventory() {
+      const { data } = await supabase
+        .from('productos')
+        .select('*')
+        .order('nombre', { ascending: true });
+      
+      if (data) setProductos(data);
+    }
+    
+    loadInventory();
+  }, []);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 pb-20">
@@ -39,6 +46,7 @@ const InventoryPage = () => {
               <tr>
                 <th className="p-4 font-bold">Producto</th>
                 <th className="p-4 font-bold">Categoría</th>
+                <th className="p-4 font-bold">SKU</th>
                 <th className="p-4 font-bold text-right">Costo</th>
                 <th className="p-4 font-bold text-right">Precio</th>
                 <th className="p-4 font-bold text-center">Stock</th>
@@ -46,29 +54,31 @@ const InventoryPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-gray-100">
-              {MOCK_INVENTARIO.map((prod) => (
+              {productos.map((prod) => (
                 <tr key={prod.id} className="hover:bg-yellow-50 transition-colors group">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-md border border-gray-300 shrink-0"></div>
                       <div>
                         <p className="font-bold text-black">{prod.nombre}</p>
-                        <p className="text-xs text-gray-500">{prod.sku}</p>
                       </div>
                     </div>
                   </td>
                   <td className="p-4">
                     <span className="bg-gray-100 px-2 py-1 rounded text-xs font-bold border border-gray-300">{prod.categoria}</span>
                   </td>
-                  <td className="p-4 text-right font-medium text-gray-500">${prod.costo}</td>
-                  <td className="p-4 text-right font-bold text-black">${prod.precio}</td>
+                  <td className="p-4 text-sm text-gray-500 font-mono">
+                    {prod.sku}
+                  </td>
+                  <td className="p-4 text-right font-medium text-gray-500">${prod.precio_costo}</td>
+                  <td className="p-4 text-right font-bold text-black">${prod.precio_venta}</td>
                   <td className="p-4 text-center">
-                    {prod.stock === 0 ? (
+                    {prod.stock_actual === 0 ? (
                       <Badge type="danger">Agotado</Badge>
-                    ) : prod.stock < 10 ? (
-                      <Badge type="warning">{prod.stock} (Bajo)</Badge>
+                    ) : prod.stock_actual < 10 ? (
+                      <Badge type="warning">{prod.stock_actual} (Bajo)</Badge>
                     ) : (
-                      <Badge type="success">{prod.stock}</Badge>
+                      <Badge type="success">{prod.stock_actual}</Badge>
                     )}
                   </td>
                   <td className="p-4 text-center">
