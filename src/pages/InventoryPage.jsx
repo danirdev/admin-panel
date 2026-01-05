@@ -106,6 +106,14 @@ const InventoryPage = () => {
     if (!error) fetchProductos();
   }
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader className="w-8 h-8 animate-spin text-black" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 pb-20">
       {/* HEADER */}

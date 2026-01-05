@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import InventoryPage from './pages/InventoryPage';
 import POSPage from './pages/POSPage';
 import LoginPage from './pages/LoginPage';
+import SalesHistoryPage from './pages/SalesHistoryPage';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -39,6 +40,7 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/pos" element={<POSPage />} />
+          <Route path="/historial" element={<SalesHistoryPage />} />
         </Route>
       </Routes>
     </Router>
