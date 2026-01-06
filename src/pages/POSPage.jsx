@@ -49,10 +49,22 @@ const POSPage = () => {
   const handleCobrar = async () => {
     if (ticket.length === 0) return;
 
+    // OPTIMISTIC UI: Backup and Clear Immediately
+    const backupTicket = [...ticket];
+    setTicket([]);
+    
+    // Guardar referencia de lo que se iba a cobrar para impresión (optimista)
+    setLastSale({
+       id: 'pending', // ID temporal
+       items: [...backupTicket],
+       total: total,
+       created_at: new Date().toISOString()
+    });
+
     try {
       // A. Obtener usuario actual (necesario para el campo usuario_id de la tabla ventas)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return toast.error("Debes iniciar sesión para cobrar");
+      if (!user) throw new Error("Debes iniciar sesión para cobrar");
 
       // B. Crear cabecera de Venta
       const { data: venta, error: errorVenta } = await supabase
@@ -68,7 +80,7 @@ const POSPage = () => {
       if (errorVenta) throw errorVenta;
 
       // C. Preparar detalles
-      const detalles = ticket.map(item => ({
+      const detalles = backupTicket.map(item => ({
         venta_id: venta.id,
         producto_id: item.id,
         cantidad: item.cantidad,
@@ -81,34 +93,26 @@ const POSPage = () => {
       if (errorDetalle) throw errorDetalle;
 
       // E. (Opcional) Descontar Stock
-      for (const item of ticket) {
+      for (const item of backupTicket) {
         await supabase.rpc('descontar_stock', { p_id: item.id, p_cantidad: item.cantidad });
       }
 
-      // F. Éxito
+      // F. Éxito Real
       toast.success("¡Venta registrada!");
       
-      // Guardar datos para impresión y limpiar
-      const saleData = {
-        id: venta.id,
-        items: [...ticket],
-        total: total,
-        created_at: new Date().toISOString()
-      };
-      setLastSale(saleData);
-      setTicket([]);
-      
-
+      // Actualizar ID real para impresión
+      setLastSale(prev => ({ ...prev, id: venta.id }));
       
       // Recargar productos (Invalidar cache)
       queryClient.invalidateQueries(['productos']); // Actualiza inventario en todos lados
-      
-      // Opcional: Imprimir automáticamente
-      // setTimeout(() => window.print(), 500);
 
     } catch (error) {
       console.error(error);
       toast.error("Error al cobrar: " + error.message);
+      
+      // ROLLBACK: Restaurar carrito
+      setTicket(backupTicket);
+      setLastSale(null); // Eliminar venta pendiente
     }
   };
 
