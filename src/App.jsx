@@ -7,6 +7,7 @@ import InventoryPage from './pages/InventoryPage';
 import POSPage from './pages/POSPage';
 import LoginPage from './pages/LoginPage';
 import SalesHistoryPage from './pages/SalesHistoryPage';
+import WebOrdersPage from './pages/WebOrdersPage';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -41,6 +42,7 @@ function App() {
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/pos" element={<POSPage />} />
           <Route path="/historial" element={<SalesHistoryPage />} />
+          <Route path="/pedidos-web" element={<WebOrdersPage />} />
         </Route>
       </Routes>
     </Router>

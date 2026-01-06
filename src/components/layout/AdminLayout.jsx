@@ -41,7 +41,7 @@ const AdminLayout = () => {
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/pos', label: 'Punto de Venta', icon: ShoppingCart },
     { path: '/inventory', label: 'Inventario', icon: Package },
-    { path: '/orders', label: 'Pedidos Web', icon: ShoppingBag },
+    { path: '/pedidos-web', label: 'Pedidos Web', icon: ShoppingBag },
     { path: '/clients', label: 'Clientes', icon: Users },
   ];
 
