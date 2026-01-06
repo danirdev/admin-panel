@@ -9,27 +9,31 @@ const SalesHistoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function fetchVentas() {
+      // Traemos ventas y sus items (detalle_ventas)
+      const { data, error } = await supabase
+        .from('ventas')
+        .select(`
+          *,
+          detalle_ventas (
+            cantidad,
+            precio_unitario,
+            producto:productos(nombre)
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50); // Traemos las últimas 50
+
+      if (error) {
+        console.error('Error fetching sales:', error);
+      }
+
+      if (data) setVentas(data);
+      setLoading(false);
+    }
+
     fetchVentas();
   }, []);
-
-  async function fetchVentas() {
-    // Traemos ventas y sus items (detalle_ventas)
-    const { data, error } = await supabase
-      .from('ventas')
-      .select(`
-        *,
-        detalle_ventas (
-          cantidad,
-          precio_unitario,
-          producto:productos(nombre)
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50); // Traemos las últimas 50
-
-    if (data) setVentas(data);
-    setLoading(false);
-  }
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in">
@@ -52,7 +56,7 @@ const SalesHistoryPage = () => {
             
             {/* Detalles de productos vendidos en esa venta */}
             <div className="text-sm space-y-1">
-              {venta.detalle_ventas.map((det, i) => (
+              {venta.detalle_ventas?.map((det, i) => (
                 <div key={i} className="flex justify-between">
                   <span className="text-gray-600">
                     {det.cantidad}x {det.producto?.nombre || 'Producto eliminado'}

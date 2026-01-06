@@ -104,3 +104,28 @@ begin
   where id = p_id;
 end;
 $$;
+
+
+-- =============================================
+-- POLÍTICAS PARA VENTAS
+-- =============================================
+-- 1. Agregar columnas para identificar al cliente web
+ALTER TABLE public.ventas 
+ADD COLUMN IF NOT EXISTS cliente_nombre TEXT,
+ADD COLUMN IF NOT EXISTS cliente_telefono TEXT,
+ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'completado'; -- 'pendiente' (web) o 'completado' (pos)
+
+-- 2. Permitir que la Web Pública (usuarios anónimos) pueda CREAR pedidos
+-- OJO: Solo permitimos INSERT, no ver ni editar ventas de otros.
+CREATE POLICY "Publico crea pedidos web"
+ON public.ventas FOR INSERT
+TO anon
+WITH CHECK (true);
+
+CREATE POLICY "Publico crea detalles web"
+ON public.detalle_ventas FOR INSERT
+TO anon
+WITH CHECK (true);
+
+-- 3. (Opcional) Ajustar la vista de historial para mostrar el nombre del cliente
+-- No requiere SQL, lo haremos en el frontend.
