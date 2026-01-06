@@ -1,6 +1,7 @@
 // src/pages/WebOrdersPage.jsx
 import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Check, X, Clock, User, Phone } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '../supabase';
 import { Card, Badge } from '../components/common/UI';
 
@@ -8,13 +9,9 @@ const WebOrdersPage = () => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPedidos();
-  }, []);
-
   async function fetchPedidos() {
     // Traemos solo los pendientes que vengan de la Web
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('ventas')
       .select(`
         *,
@@ -32,29 +29,52 @@ const WebOrdersPage = () => {
     setLoading(false);
   }
 
+  useEffect(() => {
+    fetchPedidos();
+  }, []);
+
   const finalizarPedido = async (id) => {
-    if(!confirm("¿Pedido entregado y cobrado?")) return;
-
-    // 1. Marcar como completado
-    const { error } = await supabase
-      .from('ventas')
-      .update({ estado: 'completado', metodo_pago: 'Efectivo (Web)' }) // Opcional: Cambiar método si pagan al retirar
-      .eq('id', id);
-
-    if (!error) {
-      // 2. (Opcional) Descontar stock aquí si no lo hiciste al crear el pedido
-      // Normalmente en web se descuenta al confirmar, pero si prefieres al entregar:
-      // ... lógica de descuento ...
-      
-      fetchPedidos();
-      alert("¡Pedido archivado en Historial!");
-    }
+    toast("¿Pedido entregado y cobrado?", {
+        action: {
+            label: "Confirmar Entrega",
+            onClick: async () => {
+                 // 1. Marcar como completado
+                const { error } = await supabase
+                .from('ventas')
+                .update({ estado: 'completado', metodo_pago: 'Efectivo (Web)' }) // Opcional: Cambiar método si pagan al retirar
+                .eq('id', id);
+        
+                if (!error) {
+                    // 2. (Opcional) Descontar stock aquí si no lo hiciste al crear el pedido
+                    // Normalmente en web se descuenta al confirmar, pero si prefieres al entregar:
+                    // ... lógica de descuento ...
+                    
+                    fetchPedidos();
+                    toast.success("¡Pedido archivado en Historial!");
+                }
+            }
+        },
+        cancel: {
+            label: "Cancelar"
+        }
+    });
   };
 
   const cancelarPedido = async (id) => {
-      if(!confirm("¿Cancelar este pedido?")) return;
-      await supabase.from('ventas').delete().eq('id', id);
-      fetchPedidos();
+      toast("¿Cancelar este pedido?", {
+        description: "Esta acción no se puede deshacer",
+        action: {
+            label: "Sí, cancelar",
+            onClick: async () => {
+                await supabase.from('ventas').delete().eq('id', id);
+                fetchPedidos();
+                toast.success("Pedido cancelado");
+            }
+        },
+        cancel: {
+            label: "No"
+        }
+      });
   };
 
   return (
@@ -118,7 +138,7 @@ const WebOrdersPage = () => {
                        </button>
                        <button 
                          onClick={() => finalizarPedido(pedido.id)}
-                         className="flex items-center gap-2 px-4 py-2 bg-green-500 border-2 border-black rounded font-black hover:bg-green-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all">
+                         className="flex items-center gap-2 px-4 py-2 bg-green-500 border-2 border-black rounded font-black hover:bg-green-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-px hover:shadow-none transition-all">
                            <Check className="w-5 h-5"/> ENTREGAR
                        </button>
                    </div>

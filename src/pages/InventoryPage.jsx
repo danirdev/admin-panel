@@ -1,109 +1,128 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Save, Image as ImageIcon, Loader } from 'lucide-react';
+import { toast } from 'sonner';
 import { AdminButton, Card, Badge } from '../components/common/UI';
 import { supabase } from '../supabase';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { productSchema } from '../schemas/productSchema';
 
 const InventoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false); // Estado para la subida de imagen
-  const fileInputRef = useRef(null); // Referencia al input invisible
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  // Estado formulario
-  const [nuevoProducto, setNuevoProducto] = useState({
-    nombre: '',
-    precio_venta: '',
-    precio_costo: '',
-    stock_actual: '',
-    stock_minimo: 5, // Valor por defecto
-    categoria: 'Escolar',
-    sku: '',
-    imagen_url: null // Aquí guardaremos la URL
+  // ZOD + REACT HOOK FORM
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
+    watch, 
+    reset, 
+    formState: { errors } 
+  } = useForm({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      nombre: '',
+      precio_venta: '',
+      precio_costo: '',
+      stock_actual: '',
+      stock_minimo: 5,
+      categoria: 'Escolar',
+      sku: '',
+      imagen_url: null
+    }
   });
 
-  // 1. CARGAR PRODUCTOS
+  const imagenUrl = watch('imagen_url');
+
   useEffect(() => {
     fetchProductos();
   }, []);
 
-  async function fetchProductos() {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('productos')
-      .select('*')
-      .order('id', { ascending: false });
+  const [busqueda, setBusqueda] = useState('');
+  const [debouncedBusqueda, setDebouncedBusqueda] = useState('');
 
+  // Debounce de búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedBusqueda(busqueda);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [busqueda]);
+
+  useEffect(() => {
+    fetchProductos(debouncedBusqueda);
+  }, [debouncedBusqueda]);
+
+  async function fetchProductos(query = '') {
+    setLoading(true);
+    let queryBuilder = supabase.from('productos').select('*').order('id', { ascending: false });
+    if (query) queryBuilder = queryBuilder.ilike('nombre', `%${query}%`);
+
+    const { data, error } = await queryBuilder;
     if (error) console.error('Error cargando:', error);
     else setProductos(data || []);
     setLoading(false);
   }
 
-  // 2. MANEJAR SUBIDA DE IMAGEN
   async function handleImageUpload(event) {
     try {
       setUploading(true);
       const file = event.target.files[0];
       if (!file) return;
 
-      // Generar nombre único: timestamp_nombrearchivo
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // A. Subir a Supabase Storage (Bucket 'productos_img')
-      const { error: uploadError } = await supabase.storage
-        .from('productos_img')
-        .upload(filePath, file);
-
+      const { error: uploadError } = await supabase.storage.from('productos_img').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // B. Obtener URL Pública
-      const { data: { publicUrl } } = supabase.storage
-        .from('productos_img')
-        .getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage.from('productos_img').getPublicUrl(filePath);
 
-      // C. Guardar URL en el estado local
-      setNuevoProducto(prev => ({ ...prev, imagen_url: publicUrl }));
+      setValue('imagen_url', publicUrl); // Actualizar valor en RHF
 
     } catch (error) {
-      alert('Error subiendo imagen: ' + error.message);
+      toast.error('Error subiendo imagen: ' + error.message);
     } finally {
       setUploading(false);
     }
   }
 
-  // 3. GUARDAR PRODUCTO (FINAL)
-  async function handleGuardar() {
-    if (!nuevoProducto.nombre || !nuevoProducto.precio_venta) return alert("Faltan datos obligatorios");
-
-    const { error } = await supabase.from('productos').insert([
-      {
-        nombre: nuevoProducto.nombre,
-        precio_venta: parseFloat(nuevoProducto.precio_venta),
-        precio_costo: parseFloat(nuevoProducto.precio_costo) || 0,
-        stock_actual: parseInt(nuevoProducto.stock_actual) || 0,
-        stock_minimo: parseInt(nuevoProducto.stock_minimo) || 5,
-        categoria: nuevoProducto.categoria,
-        sku: nuevoProducto.sku || null,
-        imagen_url: nuevoProducto.imagen_url // Guardamos la URL
-      }
-    ]);
+  // SUBMIT CON ZOD
+  const onSubmit = async (data) => {
+    const { error } = await supabase.from('productos').insert([data]);
 
     if (error) {
-      alert('Error guardando en BD: ' + error.message);
+      toast.error('Error guardando en BD: ' + error.message);
     } else {
       setIsModalOpen(false);
-      fetchProductos();
-      setNuevoProducto({ nombre: '', precio_venta: '', precio_costo: '', stock_actual: '', stock_minimo: 5, categoria: 'Escolar', sku: '', imagen_url: null });
+      fetchProductos(debouncedBusqueda);
+      reset(); // Limpiar formulario
+      toast.success("Producto creado exitosamente");
     }
-  }
+  };
 
-  // 4. ELIMINAR
   async function handleEliminar(id) {
-    if(!window.confirm("¿Eliminar producto?")) return;
-    const { error } = await supabase.from('productos').delete().eq('id', id);
-    if (!error) fetchProductos();
+    toast("¿Eliminar producto?", {
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          const { error } = await supabase.from('productos').delete().eq('id', id);
+          if (!error) {
+            toast.success("Producto eliminado");
+            fetchProductos(debouncedBusqueda);
+          } else {
+            toast.error("Error al eliminar");
+          }
+        }
+      },
+      cancel: { label: "Cancelar" }
+    });
   }
 
   if (loading) {
@@ -123,12 +142,14 @@ const InventoryPage = () => {
           <div className="relative grow md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
               type="text" 
               placeholder="Buscar..." 
               className="w-full pl-10 pr-4 py-2.5 border-2 border-black rounded-lg font-medium focus:ring-4 focus:ring-yellow-200 outline-none"
             />
           </div>
-          <AdminButton variant="success" icon={Plus} onClick={() => setIsModalOpen(true)}>
+          <AdminButton variant="success" icon={Plus} onClick={() => { setIsModalOpen(true); reset(); }}>
             Nuevo
           </AdminButton>
         </div>
@@ -179,7 +200,7 @@ const InventoryPage = () => {
         </div>
       </Card>
 
-      {/* MODAL NUEVO PRODUCTO */}
+      {/* MODAL CON FORMULARIO REACT HOOK FORM */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white border-4 border-black rounded-2xl w-full max-w-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[90vh]">
@@ -188,77 +209,111 @@ const InventoryPage = () => {
               <button onClick={() => setIsModalOpen(false)} className="hover:bg-white/50 p-1 rounded"><X className="w-6 h-6" /></button>
             </div>
             
-            <div className="p-6 space-y-4 overflow-y-auto">
-              {/* Sección de Imagen */}
-              <div className="flex justify-center">
-                <div 
-                  onClick={() => fileInputRef.current.click()}
-                  className="w-full h-32 border-2 border-dashed border-black rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:bg-yellow-50 cursor-pointer transition-colors relative overflow-hidden"
-                >
-                  {uploading ? (
-                    <div className="flex flex-col items-center text-yellow-600">
-                      <Loader className="w-8 h-8 animate-spin mb-2" />
-                      <span className="text-xs font-bold">Subiendo...</span>
-                    </div>
-                  ) : nuevoProducto.imagen_url ? (
-                    <img src={nuevoProducto.imagen_url} alt="Preview" className="w-full h-full object-contain" />
-                  ) : (
-                    <>
-                      <ImageIcon className="w-8 h-8 mb-2 text-gray-400" />
-                      <span className="text-xs font-bold text-gray-500">Click para subir foto</span>
-                    </>
-                  )}
-                  {/* Input invisible */}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleImageUpload} 
-                    className="hidden" 
-                    accept="image/*"
-                  />
+            <form onSubmit={handleSubmit(onSubmit)} className="contents">
+              <div className="p-6 space-y-4 overflow-y-auto">
+                {/* Sección de Imagen */}
+                <div className="flex justify-center">
+                  <div 
+                    onClick={() => fileInputRef.current.click()}
+                    className="w-full h-32 border-2 border-dashed border-black rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:bg-yellow-50 cursor-pointer transition-colors relative overflow-hidden"
+                  >
+                    {uploading ? (
+                      <div className="flex flex-col items-center text-yellow-600">
+                        <Loader className="w-8 h-8 animate-spin mb-2" />
+                        <span className="text-xs font-bold">Subiendo...</span>
+                      </div>
+                    ) : imagenUrl ? (
+                      <img src={imagenUrl} alt="Preview" className="w-full h-full object-contain" />
+                    ) : (
+                      <>
+                        <ImageIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <span className="text-xs font-bold text-gray-500">Click para subir foto</span>
+                      </>
+                    )}
+                    {/* Input invisible */}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleImageUpload} 
+                      className="hidden" 
+                      accept="image/*"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Campos de Texto */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-bold mb-1">Nombre</label>
-                  <input type="text" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({...nuevoProducto, nombre: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
-                </div>
-                <div>
-                   <label className="block text-sm font-bold mb-1">Precio Venta</label>
-                   <input type="number" value={nuevoProducto.precio_venta} onChange={e => setNuevoProducto({...nuevoProducto, precio_venta: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
-                </div>
-                <div>
-                   <label className="block text-sm font-bold mb-1">Stock Actual</label>
-                   <input type="number" value={nuevoProducto.stock_actual} onChange={e => setNuevoProducto({...nuevoProducto, stock_actual: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
-                </div>
-                <div>
-                   <label className="block text-sm font-bold mb-1">Costo (Privado)</label>
-                   <input type="number" value={nuevoProducto.precio_costo} onChange={e => setNuevoProducto({...nuevoProducto, precio_costo: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
-                </div>
-                <div>
-                   <label className="block text-sm font-bold mb-1">Stock Mínimo</label>
-                   <input type="number" value={nuevoProducto.stock_minimo} onChange={e => setNuevoProducto({...nuevoProducto, stock_minimo: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400" />
-                </div>
-                 <div className="col-span-2">
-                   <label className="block text-sm font-bold mb-1">Categoría</label>
-                   <select value={nuevoProducto.categoria} onChange={e => setNuevoProducto({...nuevoProducto, categoria: e.target.value})} className="w-full border-2 border-black rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-yellow-400">
-                     <option>Escolar</option>
-                     <option>Oficina</option>
-                     <option>Servicios</option>
-                     <option>Arte</option>
-                   </select>
+                {/* Campos de Texto */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-bold mb-1">Nombre</label>
+                    <input 
+                      type="text" 
+                      {...register('nombre')}
+                      className={`w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400 ${errors.nombre ? 'border-red-500 bg-red-50' : ''}`} 
+                    />
+                    {errors.nombre && <p className="text-red-500 text-xs font-bold mt-1">{errors.nombre.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-bold mb-1">Precio Venta</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      {...register('precio_venta')}
+                      className={`w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400 ${errors.precio_venta ? 'border-red-500 bg-red-50' : ''}`}
+                    />
+                    {errors.precio_venta && <p className="text-red-500 text-xs font-bold mt-1">{errors.precio_venta.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold mb-1">Stock Actual</label>
+                    <input 
+                      type="number" 
+                      {...register('stock_actual')}
+                      className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold mb-1">Costo (Privado)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      {...register('precio_costo')}
+                      className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold mb-1">Stock Mínimo</label>
+                    <input 
+                      type="number" 
+                      {...register('stock_minimo')}
+                      className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-bold mb-1">Categoría</label>
+                    <select 
+                      {...register('categoria')}
+                      className="w-full border-2 border-black rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-yellow-400"
+                    >
+                      <option value="Escolar">Escolar</option>
+                      <option value="Oficina">Oficina</option>
+                      <option value="Servicios">Servicios</option>
+                      <option value="Arte">Arte</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="p-6 border-t-2 border-black flex justify-end gap-3 bg-gray-50 rounded-b-xl shrink-0">
-              <AdminButton variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</AdminButton>
-              <AdminButton variant="success" icon={Save} onClick={handleGuardar} disabled={uploading}>
-                {uploading ? 'Subiendo...' : 'Guardar'}
-              </AdminButton>
-            </div>
+              
+              <div className="p-6 border-t-2 border-black flex justify-end gap-3 bg-gray-50 rounded-b-xl shrink-0">
+                <AdminButton type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</AdminButton>
+                <AdminButton type="button" variant="success" icon={Save} onClick={handleSubmit(onSubmit)} disabled={uploading}>
+                  {uploading ? 'Subiendo...' : 'Guardar'}
+                </AdminButton>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .no-print {
+    @media print {
+      display: none !important;
+    }
+  }
+
+  .print-only {
+    display: none;
+    @media print {
+      display: block;
+    }
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  /* Ocultar TODO por defecto */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Mostrar solo el ticket y sus hijos */
+  .print-only, .print-only * {
+    visibility: visible;
+  }
+
+  /* Posicionar el ticket arriba a la izquierda */
+  .print-only {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

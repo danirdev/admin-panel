@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -12,13 +13,13 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      alert('Error de acceso: ' + error.message);
+      toast.error('Error de acceso: ' + error.message);
     } else {
       // Login exitoso, vamos al Dashboard
       navigate('/'); 

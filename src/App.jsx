@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabase';
 import AdminLayout from './components/layout/AdminLayout';
@@ -32,6 +33,7 @@ function App() {
 
   return (
     <Router>
+      <Toaster richColors position="bottom-right" />
       <Routes>
         {/* Ruta Login Pública */}
         <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/" />} />
