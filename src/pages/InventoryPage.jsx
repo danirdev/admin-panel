@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus, Edit2, Trash2, X, Save, Image as ImageIcon, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminButton, Card, Badge } from '../components/common/UI';
@@ -10,9 +11,10 @@ import { productSchema } from '../schemas/productSchema';
 
 const InventoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [productos, setProductos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // const [productos, setProductos] = useState([]); // REMOVED
+  // const [loading, setLoading] = useState(true);   // REMOVED
   const [uploading, setUploading] = useState(false);
+  const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
 
   // ZOD + REACT HOOK FORM
@@ -39,9 +41,10 @@ const InventoryPage = () => {
 
   const imagenUrl = watch('imagen_url');
 
-  useEffect(() => {
-    fetchProductos();
-  }, []);
+  // Removed Initial useEffect
+  // useEffect(() => {
+  //   fetchProductos();
+  // }, []);
 
   const [busqueda, setBusqueda] = useState('');
   const [debouncedBusqueda, setDebouncedBusqueda] = useState('');
@@ -54,20 +57,23 @@ const InventoryPage = () => {
     return () => clearTimeout(timer);
   }, [busqueda]);
 
-  useEffect(() => {
-    fetchProductos(debouncedBusqueda);
-  }, [debouncedBusqueda]);
+  // useEffect(() => {
+  //   fetchProductos(debouncedBusqueda);
+  // }, [debouncedBusqueda]);
 
-  async function fetchProductos(query = '') {
-    setLoading(true);
-    let queryBuilder = supabase.from('productos').select('*').order('id', { ascending: false });
-    if (query) queryBuilder = queryBuilder.ilike('nombre', `%${query}%`);
+  const { data: productos = [], isLoading: loading } = useQuery({
+    queryKey: ['productos', debouncedBusqueda],
+    queryFn: async () => {
+      let queryBuilder = supabase.from('productos').select('*').order('id', { ascending: false });
+      if (debouncedBusqueda) queryBuilder = queryBuilder.ilike('nombre', `%${debouncedBusqueda}%`);
+      
+      const { data, error } = await queryBuilder;
+      if (error) throw error;
+      return data;
+    }
+  });
 
-    const { data, error } = await queryBuilder;
-    if (error) console.error('Error cargando:', error);
-    else setProductos(data || []);
-    setLoading(false);
-  }
+  // async function fetchProductos(query = '') { ... } // REMOVED
 
   async function handleImageUpload(event) {
     try {
@@ -101,7 +107,7 @@ const InventoryPage = () => {
       toast.error('Error guardando en BD: ' + error.message);
     } else {
       setIsModalOpen(false);
-      fetchProductos(debouncedBusqueda);
+      queryClient.invalidateQueries(['productos']); // Invalidate cache
       reset(); // Limpiar formulario
       toast.success("Producto creado exitosamente");
     }
@@ -115,7 +121,7 @@ const InventoryPage = () => {
           const { error } = await supabase.from('productos').delete().eq('id', id);
           if (!error) {
             toast.success("Producto eliminado");
-            fetchProductos(debouncedBusqueda);
+            queryClient.invalidateQueries(['productos']); // Invalidate cache
           } else {
             toast.error("Error al eliminar");
           }

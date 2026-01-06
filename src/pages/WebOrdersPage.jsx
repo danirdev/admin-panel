@@ -1,37 +1,36 @@
 // src/pages/WebOrdersPage.jsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShoppingBag, Check, X, Clock, User, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../supabase';
 import { Card, Badge } from '../components/common/UI';
 
 const WebOrdersPage = () => {
-  const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  async function fetchPedidos() {
-    // Traemos solo los pendientes que vengan de la Web
-    const { data } = await supabase
-      .from('ventas')
-      .select(`
-        *,
-        detalle_ventas (
-          cantidad,
-          precio_unitario,
-          producto:productos(nombre, sku)
-        )
-      `)
-      .eq('metodo_pago', 'Web')
-      .eq('estado', 'pendiente') // Asegúrate de haber agregado esta columna en el SQL anterior
-      .order('created_at', { ascending: true }); // Los más viejos primero para atenderlos antes
+  const { data: pedidos = [], isLoading: loading } = useQuery({
+    queryKey: ['pedidos-web'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ventas')
+        .select(`
+          *,
+          detalle_ventas (
+            cantidad,
+            precio_unitario,
+            producto:productos(nombre, sku)
+          )
+        `)
+        .eq('metodo_pago', 'Web')
+        .eq('estado', 'pendiente')
+        .order('created_at', { ascending: true });
 
-    if (data) setPedidos(data);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    fetchPedidos();
-  }, []);
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 30000, // Optional: auto-refresh every 30s
+  });
 
   const finalizarPedido = async (id) => {
     toast("¿Pedido entregado y cobrado?", {
@@ -49,7 +48,9 @@ const WebOrdersPage = () => {
                     // Normalmente en web se descuenta al confirmar, pero si prefieres al entregar:
                     // ... lógica de descuento ...
                     
-                    fetchPedidos();
+                    // ... lógica de descuento ...
+                    
+                    queryClient.invalidateQueries(['pedidos-web']);
                     toast.success("¡Pedido archivado en Historial!");
                 }
             }
@@ -67,7 +68,7 @@ const WebOrdersPage = () => {
             label: "Sí, cancelar",
             onClick: async () => {
                 await supabase.from('ventas').delete().eq('id', id);
-                fetchPedidos();
+                queryClient.invalidateQueries(['pedidos-web']);
                 toast.success("Pedido cancelado");
             }
         },

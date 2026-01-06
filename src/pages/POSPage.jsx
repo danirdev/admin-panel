@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Keep useEffect for other things if needed, or remove if unused. It is used for total calculation.
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner'; 
 import { supabase } from '../supabase';
 import ProductGrid from '../components/pos/ProductGrid';
@@ -9,18 +10,22 @@ import PrintTicket from '../components/pos/PrintTicket';
 const POSPage = () => {
   const [ticket, setTicket] = useState([]);
   const [total, setTotal] = useState(0);
-  const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [lastSale, setLastSale] = useState(null); // Estado para la última venta (impresión)
+  const queryClient = useQueryClient();
 
-  // 1. CARGAR INVENTARIO AL INICIAR
-  useEffect(() => {
-    async function loadProd() {
-      const { data } = await supabase.from('productos').select('*');
-      if (data) setProductos(data);
+  // 1. CARGAR INVENTARIO (React Query)
+  const { data: productos = [] } = useQuery({
+    queryKey: ['productos', ''], // Match InventoryPage empty search cache
+    queryFn: async () => {
+      const { data, error } = await supabase.from('productos').select('*');
+      if (error) throw error;
+      return data;
     }
-    loadProd();
-  }, []);
+  });
+
+  // REMOVED MANUAL EFFECT
+  // useEffect(() => { ... }, []);
 
   // 2. CALCULAR TOTAL AUTOMÁTICAMENTE
   useEffect(() => {
@@ -93,9 +98,10 @@ const POSPage = () => {
       setLastSale(saleData);
       setTicket([]);
       
-      // Recargar productos
-      const { data: nuevosProds } = await supabase.from('productos').select('*');
-      if (nuevosProds) setProductos(nuevosProds);
+
+      
+      // Recargar productos (Invalidar cache)
+      queryClient.invalidateQueries(['productos']); // Actualiza inventario en todos lados
       
       // Opcional: Imprimir automáticamente
       // setTimeout(() => window.print(), 500);
