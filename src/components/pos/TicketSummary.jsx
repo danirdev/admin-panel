@@ -1,8 +1,8 @@
 import React from 'react';
-import { ShoppingCart, Check } from 'lucide-react';
+import { ShoppingCart, Check, Trash2 } from 'lucide-react';
 import { Card } from '../common/UI';
 
-const TicketSummary = ({ ticket, total, handleCobrar, lastSale }) => {
+const TicketSummary = ({ ticket, total, handleCobrar, lastSale, metodoPago, setMetodoPago, removeFromTicket }) => {
   return (
     <Card className="w-full lg:w-96 flex flex-col p-0! overflow-hidden h-full border-4 shadow-xl shrink-0 dark:border-white">
       <div className="bg-black text-white dark:bg-zinc-950 p-4 flex justify-between items-center border-b border-gray-800 dark:border-white/20">
@@ -18,13 +18,20 @@ const TicketSummary = ({ ticket, total, handleCobrar, lastSale }) => {
           </div>
         ) : (
           ticket.map((item) => (
-            <div key={item.id} className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-zinc-800 text-black dark:text-white">
+            <div key={item.id} className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-zinc-800 text-black dark:text-white group">
               <div>
                 <p className="font-bold text-sm">{item.nombre}</p>
                 <p className="text-xs text-gray-500">{item.cantidad} x ${item.precio_venta}</p>
               </div>
-              <div className="text-right">
-                <p className="font-bold">${item.cantidad * item.precio_venta}</p>
+              <div className="flex items-center gap-3">
+                <span className="font-bold">${item.cantidad * item.precio_venta}</span>
+                <button 
+                  onClick={() => removeFromTicket(item.id)}
+                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  title="Quitar del ticket"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))
@@ -32,6 +39,21 @@ const TicketSummary = ({ ticket, total, handleCobrar, lastSale }) => {
       </div>
 
       <div className="bg-gray-50 dark:bg-zinc-950 p-4 border-t-2 border-black dark:border-white space-y-3">
+        {/* Selector de Método de Pago */}
+        <div>
+          <label className="block text-xs font-bold mb-1 text-gray-500 dark:text-gray-400 uppercase">Método de Pago</label>
+          <select 
+            value={metodoPago}
+            onChange={(e) => setMetodoPago(e.target.value)}
+            className="w-full p-2 border-2 border-black dark:border-white rounded-lg font-bold bg-white dark:bg-zinc-900 text-black dark:text-white outline-none focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="Efectivo">💵 Efectivo</option>
+            <option value="Transferencia">🏦 Transferencia</option>
+            <option value="Débito">💳 Débito</option>
+            <option value="Crédito">💳 Crédito</option>
+          </select>
+        </div>
+
         <div className="flex justify-between text-2xl font-black text-black dark:text-white">
           <span>TOTAL</span>
           <span>${total.toLocaleString()}</span>

@@ -8,6 +8,7 @@ import TicketSummary from '../components/pos/TicketSummary';
 import PrintTicket from '../components/pos/PrintTicket';
 
 const POSPage = () => {
+  const [metodoPago, setMetodoPago] = useState('Efectivo');
   const [ticket, setTicket] = useState([]);
   const [total, setTotal] = useState(0);
   const [busqueda, setBusqueda] = useState('');
@@ -34,15 +35,22 @@ const POSPage = () => {
   }, [ticket]);
 
   // 3. AGREGAR AL TICKET
-  const addToTicket = (prod) => {
+  // 3. AGREGAR AL TICKET
+  const addToTicket = (prod, cantidad = 1) => {
     const existe = ticket.find(i => i.id === prod.id);
     
     if(existe) {
-      if(existe.cantidad >= prod.stock_actual) return toast.warning("No hay más stock");
-      setTicket(ticket.map(i => i.id === prod.id ? {...i, cantidad: i.cantidad + 1} : i));
+      if(existe.cantidad + cantidad > prod.stock_actual) return toast.warning("Stock insuficiente para agregar " + cantidad + " unidades");
+      setTicket(ticket.map(i => i.id === prod.id ? {...i, cantidad: i.cantidad + cantidad} : i));
     } else {
-      setTicket([...ticket, {...prod, cantidad: 1}]);
+      if(cantidad > prod.stock_actual) return toast.warning("Stock insuficiente para agregar " + cantidad + " unidades");
+      setTicket([...ticket, {...prod, cantidad: cantidad}]);
     }
+    toast.success(`Agregado: ${cantidad} x ${prod.nombre}`, { duration: 1000, position: 'bottom-center' });
+  };
+
+  const removeFromTicket = (id) => {
+    setTicket(ticket.filter(item => item.id !== id));
   };
 
   // 4. PROCESAR VENTA (EL CEREBRO DE LA CAJA)
@@ -71,7 +79,7 @@ const POSPage = () => {
         .from('ventas')
         .insert([{ 
           total: total, 
-          metodo_pago: 'Efectivo',
+          metodo_pago: metodoPago,
           usuario_id: user.id 
         }])
         .select()
@@ -139,6 +147,9 @@ const POSPage = () => {
           total={total} 
           handleCobrar={handleCobrar} 
           lastSale={lastSale}
+          metodoPago={metodoPago}
+          setMetodoPago={setMetodoPago}
+          removeFromTicket={removeFromTicket}
         />
       </div>
 
