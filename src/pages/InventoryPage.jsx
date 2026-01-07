@@ -11,8 +11,7 @@ import { productSchema } from '../schemas/productSchema';
 
 const InventoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // const [productos, setProductos] = useState([]); // REMOVED
-  // const [loading, setLoading] = useState(true);   // REMOVED
+  const [editingProduct, setEditingProduct] = useState(null); // Estado para edición
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
@@ -99,18 +98,75 @@ const InventoryPage = () => {
     }
   }
 
-  // SUBMIT CON ZOD
+  // SUBMIT CON ZOD (CREATE & UPDATE)
   const onSubmit = async (data) => {
-    const { error } = await supabase.from('productos').insert([data]);
+    // Sanitize Data: Convert empty strings to null for unique fields to avoid constraint violations
+    const formattedData = {
+      ...data,
+      sku: data.sku && data.sku.trim() !== '' ? data.sku : null,
+      imagen_url: data.imagen_url || null
+    };
+
+    console.log('ENVIANDO DATA:', formattedData);
+    let error;
+
+    if (editingProduct) {
+      // UPDATE
+      const { error: updateError } = await supabase
+        .from('productos')
+        .update(formattedData)
+        .eq('id', editingProduct.id);
+      error = updateError;
+    } else {
+      // INSERT
+      const { error: insertError } = await supabase
+        .from('productos')
+        .insert([formattedData]);
+      error = insertError;
+    }
 
     if (error) {
       toast.error('Error guardando en BD: ' + error.message);
     } else {
       setIsModalOpen(false);
+      setEditingProduct(null);
       queryClient.invalidateQueries(['productos']); // Invalidate cache
       reset(); // Limpiar formulario
-      toast.success("Producto creado exitosamente");
+      toast.success(editingProduct ? "Producto actualizado" : "Producto creado exitosamente");
     }
+  };
+
+  // MANEJAR EDICIÓN
+  const handleEdit = (producto) => {
+    setEditingProduct(producto);
+    // Rellenar formulario con datos existentes
+    reset({
+      nombre: producto.nombre,
+      precio_venta: producto.precio_venta,
+      precio_costo: producto.precio_costo,
+      stock_actual: producto.stock_actual,
+      stock_minimo: producto.stock_minimo,
+      categoria: producto.categoria,
+      sku: producto.sku || '', // Handle null
+      imagen_url: producto.imagen_url
+    });
+    setIsModalOpen(true);
+  };
+  
+  // ABRIR MODAL NUEVO
+  const handleNew = () => {
+    setEditingProduct(null);
+    reset({
+      nombre: '',
+      precio_venta: '',
+      precio_costo: '',
+      stock_actual: '',
+      stock_minimo: 5,
+      categoria: 'Escolar',
+      sku: '',
+      imagen_url: null
+    });
+    setIsModalOpen(true);
   };
 
   async function handleEliminar(id) {
@@ -155,7 +211,7 @@ const InventoryPage = () => {
               className="w-full pl-10 pr-4 py-2.5 border-2 border-black rounded-lg font-medium focus:ring-4 focus:ring-yellow-200 outline-none"
             />
           </div>
-          <AdminButton variant="success" icon={Plus} onClick={() => { setIsModalOpen(true); reset(); }}>
+          <AdminButton variant="success" icon={Plus} onClick={handleNew}>
             Nuevo
           </AdminButton>
         </div>
@@ -197,6 +253,7 @@ const InventoryPage = () => {
                     <Badge type={prod.stock_actual === 0 ? 'danger' : 'success'}>{prod.stock_actual}</Badge>
                   </td>
                   <td className="p-4 text-center">
+                     <button onClick={() => handleEdit(prod)} className="p-2 hover:bg-yellow-200 rounded text-black mr-2"><Edit2 className="w-4 h-4" /></button>
                      <button onClick={() => handleEliminar(prod.id)} className="p-2 hover:bg-red-100 rounded text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
@@ -211,7 +268,7 @@ const InventoryPage = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white border-4 border-black rounded-2xl w-full max-w-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-6 border-b-2 border-black bg-yellow-300 rounded-t-xl shrink-0">
-              <h3 className="text-xl font-black">NUEVO PRODUCTO</h3>
+              <h3 className="text-xl font-black">{editingProduct ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="hover:bg-white/50 p-1 rounded"><X className="w-6 h-6" /></button>
             </div>
             
@@ -275,8 +332,9 @@ const InventoryPage = () => {
                     <input 
                       type="number" 
                       {...register('stock_actual')}
-                      className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400"
+                      className={`w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400 ${errors.stock_actual ? 'border-red-500 bg-red-50' : ''}`}
                     />
+                    {errors.stock_actual && <p className="text-red-500 text-xs font-bold mt-1">{errors.stock_actual.message}</p>}
                   </div>
 
                   <div>
@@ -285,8 +343,9 @@ const InventoryPage = () => {
                       type="number" 
                       step="0.01"
                       {...register('precio_costo')}
-                      className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400"
+                      className={`w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400 ${errors.precio_costo ? 'border-red-500 bg-red-50' : ''}`}
                     />
+                    {errors.precio_costo && <p className="text-red-500 text-xs font-bold mt-1">{errors.precio_costo.message}</p>}
                   </div>
 
                   <div>
@@ -294,8 +353,9 @@ const InventoryPage = () => {
                     <input 
                       type="number" 
                       {...register('stock_minimo')}
-                      className="w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400"
+                      className={`w-full border-2 border-black rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400 ${errors.stock_minimo ? 'border-red-500 bg-red-50' : ''}`}
                     />
+                    {errors.stock_minimo && <p className="text-red-500 text-xs font-bold mt-1">{errors.stock_minimo.message}</p>}
                   </div>
 
                   <div className="col-span-2">
@@ -315,7 +375,7 @@ const InventoryPage = () => {
               
               <div className="p-6 border-t-2 border-black flex justify-end gap-3 bg-gray-50 rounded-b-xl shrink-0">
                 <AdminButton type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</AdminButton>
-                <AdminButton type="button" variant="success" icon={Save} onClick={handleSubmit(onSubmit)} disabled={uploading}>
+                <AdminButton type="submit" variant="success" icon={Save} disabled={uploading}>
                   {uploading ? 'Subiendo...' : 'Guardar'}
                 </AdminButton>
               </div>

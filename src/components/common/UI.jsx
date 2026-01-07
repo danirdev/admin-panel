@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const AdminButton = ({ children, variant = 'primary', icon: Icon, onClick, className = '' }) => {
+export const AdminButton = ({ children, variant = 'primary', icon: Icon, onClick, className = '', ...props }) => {
   const styles = {
     primary: "bg-black text-white hover:bg-gray-800",
     success: "bg-green-400 text-black hover:bg-green-500",
@@ -13,6 +13,7 @@ export const AdminButton = ({ children, variant = 'primary', icon: Icon, onClick
     <button 
       onClick={onClick}
       className={`${styles[variant]} px-4 py-2.5 font-bold border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center gap-2 ${className}`}
+      {...props}
     >
       {Icon && <Icon className="w-4 h-4" />}
       {children}

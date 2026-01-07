@@ -7,6 +7,6 @@ export const productSchema = z.object({
   stock_actual: z.coerce.number().int("Debe ser entero").min(0, "El stock no puede ser negativo").optional().default(0),
   stock_minimo: z.coerce.number().int().min(0).optional().default(5),
   categoria: z.string().min(1, "Selecciona una categoría"),
-  sku: z.string().optional(),
+  sku: z.string().optional().nullable(),
   imagen_url: z.string().optional().nullable()
 });
