@@ -6,6 +6,7 @@ import {
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { supabase } from '../../supabase';
+import ThemeToggle from '../common/ThemeToggle';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -48,7 +49,7 @@ const AdminLayout = () => {
   const currentItem = MENU_ITEMS.find(item => item.path === location.pathname) || MENU_ITEMS[0];
 
   return (
-    <div className="h-screen bg-[#FFFDF5] font-sans flex overflow-hidden">
+    <div className="h-screen bg-[#FFFDF5] dark:bg-zinc-950 font-sans flex overflow-hidden transition-colors duration-300">
       
       {/* 1. MOBILE BACKDROP */}
       {!isDesktop && isSidebarOpen && (
@@ -61,14 +62,14 @@ const AdminLayout = () => {
       {/* 2. SIDEBAR */}
       <aside 
         className={`
-          fixed md:relative z-40 h-full bg-black text-white flex flex-col transition-all duration-300 ease-out border-r-4 border-black
+          fixed md:relative z-40 h-full bg-black dark:bg-zinc-900 text-white flex flex-col transition-all duration-300 ease-out border-r-4 border-black dark:border-white/20
           ${!isDesktop 
               ? (isSidebarOpen ? 'translate-x-0 w-[80%] max-w-sm shadow-2xl' : '-translate-x-full w-[80%] max-w-sm') 
               : (isSidebarOpen ? 'w-64 translate-x-0' : 'w-20 translate-x-0') 
           }
         `}
       >
-        <div className="h-20 flex items-center justify-center border-b border-gray-800 shrink-0">
+        <div className="h-20 flex items-center justify-center border-b border-gray-800 dark:border-white/10 shrink-0">
           {(!isDesktop || isSidebarOpen) ? (
             <h1 className="text-2xl font-black tracking-tighter text-yellow-400 animate-in fade-in">RAMOS<span className="text-white text-base font-normal">.ADMIN</span></h1>
           ) : (
@@ -83,8 +84,8 @@ const AdminLayout = () => {
               onClick={() => handleNavClick(item.path)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all group relative ${
                 location.pathname === item.path 
-                  ? 'bg-yellow-400 text-black font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)]' 
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-white'
+                  ? 'bg-yellow-400 text-black font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)] dark:shadow-none' 
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-white dark:hover:bg-white/10'
               }`}
             >
               <item.icon className={`w-5 h-5 shrink-0 ${location.pathname === item.path ? 'text-black' : ''}`} />
@@ -102,10 +103,10 @@ const AdminLayout = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-800 shrink-0">
+        <div className="p-4 border-t border-gray-800 dark:border-white/10 shrink-0">
            <button 
              onClick={handleLogout}
-             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-gray-900 transition-all justify-start"
+             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-gray-900 dark:hover:bg-white/10 transition-all justify-start"
            >
               <LogOut className="w-5 h-5 shrink-0" />
               {(!isDesktop || isSidebarOpen) && <span className="font-bold whitespace-nowrap">Cerrar Sesión</span>}
@@ -116,32 +117,34 @@ const AdminLayout = () => {
       {/* 3. MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-screen w-full relative">
         {/* Topbar */}
-        <header className="h-20 bg-white border-b-4 border-black px-4 md:px-6 flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-sm">
+        <header className="h-20 bg-white dark:bg-zinc-950 border-b-4 border-black dark:border-white/20 px-4 md:px-6 flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-4">
              <button 
                onClick={() => setSidebarOpen(!isSidebarOpen)} 
-               className="p-2 hover:bg-gray-100 rounded-lg border-2 border-transparent hover:border-black transition-all active:scale-95"
+               className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white rounded-lg border-2 border-transparent hover:border-black dark:hover:border-white transition-all active:scale-95"
              >
                 <Menu className="w-6 h-6" />
              </button>
              
-             <h2 className="text-xl font-bold uppercase tracking-widest hidden sm:block">
+             <h2 className="text-xl font-bold uppercase tracking-widest hidden sm:block dark:text-white">
                {currentItem.label}
              </h2>
           </div>
           
           <div className="flex items-center gap-4">
-            <button className="p-2 relative hover:bg-gray-100 rounded-full transition-colors">
-              <Bell className="w-5 h-5 text-gray-600" />
+            <ThemeToggle />
+            
+            <button className="p-2 relative hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+              <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
             </button>
 
-            <div className="flex items-center gap-3 pl-4 border-l-2 border-gray-200">
+            <div className="flex items-center gap-3 pl-4 border-l-2 border-gray-200 dark:border-white/20">
               <div className="text-right hidden md:block leading-tight">
-                <p className="font-bold text-sm">Daniel R.</p>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Admin</p>
+                <p className="font-bold text-sm dark:text-white">Daniel R.</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">Admin</p>
               </div>
-              <div className="w-9 h-9 bg-blue-500 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:translate-y-1 hover:shadow-none transition-all"></div>
+              <div className="w-9 h-9 bg-blue-500 rounded-full border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] cursor-pointer hover:translate-y-1 hover:shadow-none transition-all"></div>
             </div>
           </div>
         </header>

@@ -99,14 +99,14 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card color="bg-blue-200" className="flex flex-col justify-between h-32 hover:-translate-y-1 transition-transform">
           <div className="flex justify-between items-start">
-            <div className="p-2 bg-white border-2 border-black rounded-lg">
-              <DollarSign className="w-5 h-5" />
+            <div className="p-2 bg-white dark:bg-zinc-800 border-2 border-black dark:border-white rounded-lg">
+              <DollarSign className="w-5 h-5 dark:text-white" />
             </div>
             <Badge type="success">Hoy</Badge>
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-600">Caja Diaria</p>
-            <h3 className="text-3xl font-black text-black">
+            <p className="text-sm font-bold text-gray-600 dark:text-gray-300">Caja Diaria</p>
+            <h3 className="text-3xl font-black text-black dark:text-white">
               {loading ? "..." : `$${stats.dineroHoy.toLocaleString()}`}
             </h3>
           </div>
@@ -114,13 +114,13 @@ const DashboardPage = () => {
 
         <Card color="bg-pink-200" className="flex flex-col justify-between h-32 hover:-translate-y-1 transition-transform">
           <div className="flex justify-between items-start">
-            <div className="p-2 bg-white border-2 border-black rounded-lg">
-              <ShoppingBag className="w-5 h-5" />
+            <div className="p-2 bg-white dark:bg-zinc-800 border-2 border-black dark:border-white rounded-lg">
+              <ShoppingBag className="w-5 h-5 dark:text-white" />
             </div>
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-600">Ventas Hoy</p>
-            <h3 className="text-3xl font-black text-black">
+            <p className="text-sm font-bold text-gray-600 dark:text-gray-300">Ventas Hoy</p>
+            <h3 className="text-3xl font-black text-black dark:text-white">
               {loading ? "..." : stats.ventasHoy}
             </h3>
           </div>
@@ -128,14 +128,14 @@ const DashboardPage = () => {
 
         <Card color="bg-yellow-200" className="flex flex-col justify-between h-32 hover:-translate-y-1 transition-transform">
           <div className="flex justify-between items-start">
-            <div className="p-2 bg-white border-2 border-black rounded-lg">
-              <Package className="w-5 h-5" />
+            <div className="p-2 bg-white dark:bg-zinc-800 border-2 border-black dark:border-white rounded-lg">
+              <Package className="w-5 h-5 dark:text-white" />
             </div>
             {stats.itemsBajoStock > 0 && <Badge type="danger">Atención</Badge>}
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-600">Bajo Stock</p>
-            <h3 className="text-3xl font-black text-black">
+            <p className="text-sm font-bold text-gray-600 dark:text-gray-300">Bajo Stock</p>
+            <h3 className="text-3xl font-black text-black dark:text-white">
               {loading ? "..." : stats.itemsBajoStock} Items
             </h3>
           </div>
@@ -143,13 +143,13 @@ const DashboardPage = () => {
 
         <Card color="bg-green-200" className="flex flex-col justify-between h-32 hover:-translate-y-1 transition-transform">
           <div className="flex justify-between items-start">
-            <div className="p-2 bg-white border-2 border-black rounded-lg">
-              <TrendingUp className="w-5 h-5" />
+            <div className="p-2 bg-white dark:bg-zinc-800 border-2 border-black dark:border-white rounded-lg">
+              <TrendingUp className="w-5 h-5 dark:text-white" />
             </div>
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-600">Ticket Promedio</p>
-            <h3 className="text-3xl font-black text-black">
+            <p className="text-sm font-bold text-gray-600 dark:text-gray-300">Ticket Promedio</p>
+            <h3 className="text-3xl font-black text-black dark:text-white">
               {loading || stats.ventasHoy === 0 ? "$0" : `$${Math.round(stats.dineroHoy / stats.ventasHoy).toLocaleString()}`}
             </h3>
           </div>
@@ -160,15 +160,15 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* GRÁFICO DE BARRAS */}
         <Card className="h-80 flex flex-col">
-            <h3 className="font-black text-lg mb-4 flex items-center gap-2">
+            <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-black dark:text-white">
                 <BarChart3 className="w-5 h-5"/> VENTAS ÚLTIMA SEMANA
             </h3>
-            <div className="flex-1 w-full min-h-0">
+            <div className="flex-1 w-full min-h-0 text-black dark:text-white">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData.barData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-                        <YAxis tickFormatter={(value) => `$${value}`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.3} />
+                        <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 'bold', fill: 'currentColor'}} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(value) => `$${value}`} tick={{fontSize: 12, fill: 'currentColor'}} axisLine={false} tickLine={false} />
                         <Tooltip 
                             cursor={{fill: '#f3f4f6'}}
                             contentStyle={{borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px black'}}
@@ -181,7 +181,7 @@ const DashboardPage = () => {
 
         {/* GRÁFICO DE TORTA */}
         <Card className="h-80 flex flex-col">
-            <h3 className="font-black text-lg mb-4 flex items-center gap-2">
+            <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-black dark:text-white">
                 <PieChart className="w-5 h-5"/> TOP PRODUCTOS
             </h3>
             <div className="flex-1 w-full min-h-0">
@@ -200,7 +200,7 @@ const DashboardPage = () => {
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="black" strokeWidth={2} />
                             ))}
                         </Pie>
-                        <Legend layout="vertical" verticalAlign="middle" align="right" />
+                        <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{color: 'currentColor'}} />
                         <Tooltip 
                              contentStyle={{borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px black'}}
                         />
@@ -213,20 +213,20 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Últimas Ventas Real */}
         <Card className="lg:col-span-3">
-          <h3 className="font-black text-xl mb-4">ÚLTIMAS VENTAS</h3>
+          <h3 className="font-black text-xl mb-4 text-black dark:text-white">ÚLTIMAS VENTAS</h3>
           <div className="space-y-3">
             {stats.ultimasVentas.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No hay ventas registradas hoy.</p>
             ) : (
               stats.ultimasVentas.map((venta) => (
-                <div key={venta.id} className="flex items-center justify-between p-3 bg-gray-50 border-2 border-black rounded-lg hover:bg-gray-100 transition-colors">
+                <div key={venta.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800 border-2 border-black dark:border-white rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
                   <div className="flex gap-4 items-center">
-                    <div className="bg-black text-white w-10 h-10 flex items-center justify-center rounded font-bold text-xs">
+                    <div className="bg-black dark:bg-zinc-950 text-white w-10 h-10 flex items-center justify-center rounded font-bold text-xs border dark:border-white">
                        {formatTime(venta.created_at)}
                     </div>
                     <div>
-                      <p className="font-bold text-black text-lg">${venta.total.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500">ID Venta: #{venta.id}</p>
+                      <p className="font-bold text-black dark:text-white text-lg">${venta.total.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">ID Venta: #{venta.id}</p>
                     </div>
                   </div>
                   <Badge>{venta.metodo_pago}</Badge>
@@ -236,7 +236,7 @@ const DashboardPage = () => {
           </div>
           
           {/* Botón hacia el historial */}
-          <Link to="/historial" className="w-full mt-4 text-center text-sm font-bold text-blue-600 hover:underline flex items-center justify-center gap-1">
+          <Link to="/historial" className="w-full mt-4 text-center text-sm font-bold text-blue-600 hover:underline flex items-center justify-center gap-1 dark:text-blue-400">
             Ver Historial Completo <ChevronRight className="w-4 h-4"/>
           </Link>
         </Card>

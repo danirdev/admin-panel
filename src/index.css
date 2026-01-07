@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer utilities {
   .no-print {
     @media print {
@@ -26,7 +28,8 @@
   }
 
   /* Mostrar solo el ticket y sus hijos */
-  .print-only, .print-only * {
+  .print-only,
+  .print-only * {
     visibility: visible;
   }
 
