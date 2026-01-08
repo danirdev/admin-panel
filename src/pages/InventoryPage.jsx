@@ -15,6 +15,7 @@ const InventoryPage = () => {
 
   const [busqueda, setBusqueda] = useState('');
   const [debouncedBusqueda, setDebouncedBusqueda] = useState('');
+  const [sortConfig, setSortConfig] = useState({ column: 'created_at', ascending: false });
 
   // Debounce de búsqueda
   useEffect(() => {
@@ -25,10 +26,17 @@ const InventoryPage = () => {
   }, [busqueda]);
 
   const { data: productos = [], isLoading: loading } = useQuery({
-    queryKey: ['productos', debouncedBusqueda],
+    queryKey: ['productos', debouncedBusqueda, sortConfig],
     queryFn: async () => {
-      let queryBuilder = supabase.from('productos').select('*').order('id', { ascending: false });
-      if (debouncedBusqueda) queryBuilder = queryBuilder.ilike('nombre', `%${debouncedBusqueda}%`);
+      let queryBuilder = supabase.from('productos').select('*');
+      
+      // Aplicar busqueda
+      if (debouncedBusqueda) {
+        queryBuilder = queryBuilder.ilike('nombre', `%${debouncedBusqueda}%`);
+      }
+      
+      // Aplicar ordenamiento
+      queryBuilder = queryBuilder.order(sortConfig.column, { ascending: sortConfig.ascending });
       
       const { data, error } = await queryBuilder;
       if (error) throw error;
@@ -127,6 +135,24 @@ const InventoryPage = () => {
               className="w-full pl-10 pr-4 py-2.5 border-2 border-black dark:border-white rounded-lg font-medium focus:ring-4 focus:ring-yellow-200 outline-none dark:bg-zinc-900 dark:text-white dark:focus:ring-yellow-900"
             />
           </div>
+          
+          <select 
+            value={`${sortConfig.column}-${sortConfig.ascending}`}
+            onChange={(e) => {
+              const [column, ascending] = e.target.value.split('-');
+              setSortConfig({ column, ascending: ascending === 'true' });
+            }}
+            className="border-2 border-black dark:border-white rounded-lg px-4 py-2.5 font-bold bg-white dark:bg-zinc-900 text-black dark:text-white outline-none focus:ring-4 focus:ring-yellow-200 dark:focus:ring-yellow-900 cursor-pointer"
+          >
+            <option value="created_at-false">Más Recientes</option>
+            <option value="nombre-true">Nombre (A-Z)</option>
+            <option value="nombre-false">Nombre (Z-A)</option>
+            <option value="precio_venta-true">Precio (Menor)</option>
+            <option value="precio_venta-false">Precio (Mayor)</option>
+            <option value="stock_actual-true">Stock (Menor)</option>
+            <option value="stock_actual-false">Stock (Mayor)</option>
+          </select>
+
           <AdminButton variant="outline" icon={Download} onClick={handleExport}>
             Exportar
           </AdminButton>
