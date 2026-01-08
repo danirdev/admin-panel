@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Edit2, Trash2, Image as ImageIcon, Loader, Download } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Image as ImageIcon, Loader, Download, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminButton, Card, Badge } from '../components/common/UI';
 import { supabase } from '../supabase';
@@ -57,6 +57,20 @@ const InventoryPage = () => {
   // ABRIR MODAL NUEVO
   const handleNew = () => {
     setEditingProduct(null);
+    setIsModalOpen(true);
+    setIsModalOpen(true);
+  };
+
+  // MANEJAR DUPLICADO
+  const handleDuplicate = (producto) => {
+    // Creamos una copia sin ID y con "(Copia)" en el nombre
+    const copia = { 
+      ...producto, 
+      id: null, 
+      nombre: `${producto.nombre} (Copia)`,
+      sku: '' // Limpiamos SKU para evitar conflicto
+    };
+    setEditingProduct(copia);
     setIsModalOpen(true);
   };
 
@@ -289,8 +303,9 @@ const InventoryPage = () => {
                     <Badge type={prod.stock_actual === 0 ? 'danger' : 'success'}>{prod.stock_actual}</Badge>
                   </td>
                   <td className="p-4 text-center">
-                     <button onClick={() => handleEdit(prod)} className="p-2 hover:bg-yellow-200 dark:hover:bg-yellow-900 rounded text-black dark:text-white mr-2"><Edit2 className="w-4 h-4" /></button>
-                     <button onClick={() => handleEliminar(prod.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/50 rounded text-red-600 dark:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                     <button title="Editar" onClick={() => handleEdit(prod)} className="p-2 hover:bg-yellow-200 dark:hover:bg-yellow-900 rounded text-black dark:text-white mr-2"><Edit2 className="w-4 h-4" /></button>
+                     <button title="Duplicar" onClick={() => handleDuplicate(prod)} className="p-2 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded text-blue-600 dark:text-blue-400 mr-2"><Copy className="w-4 h-4" /></button>
+                     <button title="Eliminar" onClick={() => handleEliminar(prod.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/50 rounded text-red-600 dark:text-red-400"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}

@@ -138,7 +138,7 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
 
     let error;
 
-    if (productToEdit) {
+    if (productToEdit?.id) {
       const { error: updateError } = await supabase
         .from('productos')
         .update(formattedData)
@@ -166,7 +166,7 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
     <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-zinc-900 border-4 border-black dark:border-white rounded-2xl w-full max-w-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-6 border-b-2 border-black dark:border-white bg-yellow-300 dark:bg-yellow-500 rounded-t-xl shrink-0">
-          <h3 className="text-xl font-black text-black">{productToEdit ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO'}</h3>
+          <h3 className="text-xl font-black text-black">{productToEdit?.id ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO'}</h3>
           <button onClick={onClose} className="hover:bg-white/50 p-1 rounded text-black"><X className="w-6 h-6" /></button>
         </div>
         
@@ -272,8 +272,10 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
                 >
                   <option value="Escolar">Escolar</option>
                   <option value="Oficina">Oficina</option>
-                  <option value="Servicios">Servicios</option>
                   <option value="Arte">Arte</option>
+                  <option value="Servicios">Servicios</option>
+                  <option value="Regalería">Regalería</option>
+                  <option value="Bazar">Bazar</option>
                 </select>
               </div>
 
