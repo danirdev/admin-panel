@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Save, Image as ImageIcon, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query'; // Import queryClient
+import imageCompression from 'browser-image-compression';
 
 import { supabase } from '../../supabase';
 import { productSchema } from '../../schemas/productSchema';
@@ -11,6 +12,7 @@ import { AdminButton } from '../common/UI';
 
 const ProductModal = ({ isOpen, onClose, productToEdit }) => {
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
 
@@ -66,17 +68,27 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
     }
   }, [isOpen, productToEdit, reset]);
 
-  const handleImageUpload = async (event) => {
+  const processAndUploadImage = async (file) => {
+    if (!file) return;
+
     try {
       setUploading(true);
-      const file = event.target.files[0];
-      if (!file) return;
 
-      const fileExt = file.name.split('.').pop();
+      // Opciones de compresion
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+        fileType: 'image/webp'
+      };
+
+      const compressedFile = await imageCompression(file, options);
+      
+      const fileExt = 'webp'; // Siempre webp
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('productos_img').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('productos_img').upload(filePath, compressedFile);
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('productos_img').getPublicUrl(filePath);
@@ -84,9 +96,36 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
       setValue('imagen_url', publicUrl);
 
     } catch (error) {
+      console.error(error);
       toast.error('Error subiendo imagen: ' + error.message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    await processAndUploadImage(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      await processAndUploadImage(file);
+    } else {
+      toast.error('Por favor suelta un archivo de imagen válido');
     }
   };
 
@@ -137,7 +176,14 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
             <div className="flex justify-center">
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-black dark:border-white rounded-lg flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-800 hover:bg-yellow-50 dark:hover:bg-zinc-700 cursor-pointer transition-colors relative overflow-hidden"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden
+                  ${isDragging 
+                    ? 'border-yellow-500 bg-yellow-100 dark:bg-yellow-900/30 scale-105' 
+                    : 'border-black dark:border-white bg-gray-50 dark:bg-zinc-800 hover:bg-yellow-50 dark:hover:bg-zinc-700'
+                  }`}
               >
                 {uploading ? (
                   <div className="flex flex-col items-center text-yellow-600">
@@ -149,7 +195,9 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
                 ) : (
                   <>
                     <ImageIcon className="w-8 h-8 mb-2 text-gray-400" />
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Click para subir foto</span>
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                      {isDragging ? '¡Suelta la imagen aquí!' : 'Click o arrastra para subir foto'}
+                    </span>
                   </>
                 )}
                 <input 
@@ -236,6 +284,7 @@ const ProductModal = ({ isOpen, onClose, productToEdit }) => {
                   {...register('sku')}
                   className="w-full border-2 border-black dark:border-white rounded-lg p-2 outline-none focus:ring-2 focus:ring-yellow-400 dark:bg-zinc-800 dark:text-white" 
                   placeholder="Código de barras..."
+                  autoFocus={!productToEdit} // Auto focus solo si es nuevo
                 />
               </div>
             </div>

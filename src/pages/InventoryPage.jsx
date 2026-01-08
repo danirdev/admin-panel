@@ -5,9 +5,11 @@ import { toast } from 'sonner';
 import { AdminButton, Card, Badge } from '../components/common/UI';
 import { supabase } from '../supabase';
 import ProductModal from '../components/inventory/ProductModal';
+import ImportModal from '../components/inventory/ImportModal';
 
 const InventoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const queryClient = useQueryClient();
 
@@ -128,6 +130,9 @@ const InventoryPage = () => {
           <AdminButton variant="outline" icon={Download} onClick={handleExport}>
             Exportar
           </AdminButton>
+          <AdminButton variant="outline" icon={Download} onClick={() => setIsImportModalOpen(true)}>
+            Importar
+          </AdminButton>
           <AdminButton variant="success" icon={Plus} onClick={handleNew}>
             Nuevo
           </AdminButton>
@@ -185,6 +190,12 @@ const InventoryPage = () => {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         productToEdit={editingProduct} 
+      />
+
+      <ImportModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+        onSuccess={() => queryClient.invalidateQueries(['productos'])}
       />
     </div>
   );
