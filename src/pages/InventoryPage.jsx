@@ -6,6 +6,9 @@ import { AdminButton, Card, Badge } from '../components/common/UI';
 import { supabase } from '../supabase';
 import ProductModal from '../components/inventory/ProductModal';
 import ImportModal from '../components/inventory/ImportModal';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { FileText, ChevronDown } from 'lucide-react';
 
 const InventoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,6 +19,7 @@ const InventoryPage = () => {
   const [busqueda, setBusqueda] = useState('');
   const [debouncedBusqueda, setDebouncedBusqueda] = useState('');
   const [sortConfig, setSortConfig] = useState({ column: 'created_at', ascending: false });
+  const [showReportMenu, setShowReportMenu] = useState(false);
 
   // Debounce de búsqueda
   useEffect(() => {
@@ -111,6 +115,65 @@ const InventoryPage = () => {
     toast.success('Inventario exportado correctamente');
   };
 
+  const generatePDF = (type) => {
+    try {
+      const doc = new jsPDF();
+      // Ya no verificamos doc.autoTable porque usamos la funcion importada
+      const date = new Date().toLocaleDateString();
+    
+    let title = '';
+    let dataToPrint = [];
+    
+    if (type === 'low_stock') {
+      title = `REPORTE DE COMPRAS (Stock Bajo) - ${date}`;
+      // Filtrar productos con stock menor o igual al minimo
+      dataToPrint = productos.filter(p => p.stock_actual <= p.stock_minimo);
+      if (dataToPrint.length === 0) {
+        toast.info("No hay productos con stock bajo.");
+        return;
+      }
+    } else {
+      title = `INVENTARIO COMPLETO - ${date}`;
+      dataToPrint = productos;
+    }
+
+    doc.setFontSize(18);
+    doc.text(title, 14, 22);
+    
+    const tableColumn = ["Producto", "Categoría", "Stock Actual", "Mínimo", "Precio Venta", "SKU"];
+    const tableRows = [];
+
+    dataToPrint.forEach(product => {
+      const productData = [
+        product.nombre,
+        product.categoria,
+        product.stock_actual,
+        product.stock_minimo,
+        `$${product.precio_venta}`,
+        product.sku || '-'
+      ];
+      tableRows.push(productData);
+    });
+
+    // Usar la función importada directamente si doc.autoTable no existe (o siempre)
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 2 },
+      headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] }
+    });
+
+    doc.save(`reporte_${type}_${Date.now()}.pdf`);
+    toast.success('Reporte generado exitosamente');
+    setShowReportMenu(false);
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      toast.error("Error generando PDF: " + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -151,7 +214,32 @@ const InventoryPage = () => {
             <option value="precio_venta-false">Precio (Mayor)</option>
             <option value="stock_actual-true">Stock (Menor)</option>
             <option value="stock_actual-false">Stock (Mayor)</option>
+            <option value="stock_actual-false">Stock (Mayor)</option>
           </select>
+
+          {/* Report Dropdown */}
+          <div className="relative">
+             <AdminButton variant="outline" icon={FileText} onClick={() => setShowReportMenu(!showReportMenu)}>
+                Reportes <ChevronDown className="w-4 h-4 ml-1" />
+             </AdminButton>
+             
+             {showReportMenu && (
+               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border-2 border-black dark:border-white rounded-lg shadow-xl z-50 overflow-hidden">
+                 <button 
+                  onClick={() => generatePDF('low_stock')}
+                  className="w-full text-left px-4 py-3 hover:bg-yellow-50 dark:hover:bg-zinc-700 font-bold text-sm text-black dark:text-white border-b border-gray-100 dark:border-gray-700"
+                 >
+                   📉 Stock Bajo (Compras)
+                 </button>
+                 <button 
+                  onClick={() => generatePDF('full')}
+                  className="w-full text-left px-4 py-3 hover:bg-yellow-50 dark:hover:bg-zinc-700 font-bold text-sm text-black dark:text-white"
+                 >
+                   📋 Inventario Completo
+                 </button>
+               </div>
+             )}
+          </div>
 
           <AdminButton variant="outline" icon={Download} onClick={handleExport}>
             Exportar
