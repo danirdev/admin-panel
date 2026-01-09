@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, ShoppingBag, Package, Users, LogOut, 
-  Menu, Bell, ShoppingCart
+  Menu, Bell, ShoppingCart, Calculator
 } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -43,6 +43,7 @@ const AdminLayout = () => {
     { path: '/pos', label: 'Punto de Venta', icon: ShoppingCart },
     { path: '/inventory', label: 'Inventario', icon: Package },
     { path: '/pedidos-web', label: 'Pedidos Web', icon: ShoppingBag },
+    { path: '/calculator', label: 'Calculadora', icon: Calculator },
     { path: '/clients', label: 'Clientes', icon: Users },
   ];
 

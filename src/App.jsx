@@ -9,6 +9,8 @@ import POSPage from './pages/POSPage';
 import LoginPage from './pages/LoginPage';
 import SalesHistoryPage from './pages/SalesHistoryPage';
 import WebOrdersPage from './pages/WebOrdersPage';
+import CalculatorPage from './pages/CalculatorPage';
+import ClientsPage from './pages/ClientsPage';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -62,6 +64,8 @@ function App() {
           <Route path="/pos" element={<POSPage />} />
           <Route path="/historial" element={<SalesHistoryPage />} />
           <Route path="/pedidos-web" element={<WebOrdersPage />} />
+          <Route path="/calculator" element={<CalculatorPage />} />
+          <Route path="/clients" element={<ClientsPage />} />
         </Route>
       </Routes>
     </Router>

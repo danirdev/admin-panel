@@ -2,7 +2,18 @@ import React from 'react';
 import { ShoppingCart, Check, Trash2 } from 'lucide-react';
 import { Card } from '../common/UI';
 
-const TicketSummary = ({ ticket, total, handleCobrar, lastSale, metodoPago, setMetodoPago, removeFromTicket }) => {
+const TicketSummary = ({ 
+  ticket, 
+  total, 
+  handleCobrar, 
+  lastSale, 
+  metodoPago, 
+  setMetodoPago, 
+  removeFromTicket,
+  clientes = [],
+  selectedClient = null,
+  setSelectedClient = () => {}
+}) => {
   return (
     <Card className="w-full lg:w-96 flex flex-col p-0! overflow-hidden h-full border-4 shadow-xl shrink-0 dark:border-white">
       <div className="bg-black text-white dark:bg-zinc-950 p-4 flex justify-between items-center border-b border-gray-800 dark:border-white/20">
@@ -39,6 +50,26 @@ const TicketSummary = ({ ticket, total, handleCobrar, lastSale, metodoPago, setM
       </div>
 
       <div className="bg-gray-50 dark:bg-zinc-950 p-4 border-t-2 border-black dark:border-white space-y-3">
+        {/* Selector de Cliente */}
+        <div>
+          <label className="block text-xs font-bold mb-1 text-gray-500 dark:text-gray-400 uppercase">Cliente</label>
+          <select 
+            value={selectedClient?.id || ''}
+            onChange={(e) => {
+              const cliente = clientes.find(c => c.id === e.target.value);
+              setSelectedClient(cliente || null);
+            }}
+            className="w-full p-2 border-2 border-black dark:border-white rounded-lg font-bold bg-white dark:bg-zinc-900 text-black dark:text-white outline-none focus:ring-2 focus:ring-yellow-400"
+          >
+            <option value="">👤 Consumidor Final</option>
+            {clientes.map(c => (
+              <option key={c.id} value={c.id}>
+                 {c.nombre} {c.saldo > 0 ? `(Debe: $${c.saldo})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Selector de Método de Pago */}
         <div>
           <label className="block text-xs font-bold mb-1 text-gray-500 dark:text-gray-400 uppercase">Método de Pago</label>
@@ -51,10 +82,11 @@ const TicketSummary = ({ ticket, total, handleCobrar, lastSale, metodoPago, setM
             <option value="Transferencia">🏦 Transferencia</option>
             <option value="Débito">💳 Débito</option>
             <option value="Crédito">💳 Crédito</option>
+            <option value="Cuenta Corriente">📒 Cuenta Corriente (Fiado)</option>
           </select>
         </div>
 
-        <div className="flex justify-between text-2xl font-black text-black dark:text-white">
+        <div className="flex justify-between text-2xl font-black text-black dark:text-white border-t border-dashed border-gray-300 dark:border-zinc-700 pt-4">
           <span>TOTAL</span>
           <span>${total.toLocaleString()}</span>
         </div>

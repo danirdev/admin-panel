@@ -13,6 +13,7 @@ const POSPage = () => {
   const [total, setTotal] = useState(0);
   const [busqueda, setBusqueda] = useState('');
   const [lastSale, setLastSale] = useState(null); // Estado para la última venta (impresión)
+  const [selectedClient, setSelectedClient] = useState(null); // Nuevo estado para cliente
   const queryClient = useQueryClient();
 
   // 1. CARGAR INVENTARIO (React Query)
@@ -25,8 +26,15 @@ const POSPage = () => {
     }
   });
 
-  // REMOVED MANUAL EFFECT
-  // useEffect(() => { ... }, []);
+  // 1b. CARGAR CLIENTES (Para el selector)
+  const { data: clientes = [] } = useQuery({
+    queryKey: ['clientes'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('clientes').select('id, nombre, saldo').order('nombre');
+      if (error) throw error;
+      return data;
+    }
+  });
 
   // 2. CALCULAR TOTAL AUTOMÁTICAMENTE
   useEffect(() => {
@@ -34,7 +42,6 @@ const POSPage = () => {
     setTotal(nuevoTotal);
   }, [ticket]);
 
-  // 3. AGREGAR AL TICKET
   // 3. AGREGAR AL TICKET
   const addToTicket = (prod, cantidad = 1) => {
     const existe = ticket.find(i => i.id === prod.id);
@@ -57,6 +64,11 @@ const POSPage = () => {
   const handleCobrar = async () => {
     if (ticket.length === 0) return;
 
+    // Validación de Cliente para Fiado
+    if (metodoPago === 'Cuenta Corriente' && !selectedClient) {
+      return toast.error("Debes seleccionar un cliente para cobrar con Cuenta Corriente");
+    }
+
     // OPTIMISTIC UI: Backup and Clear Immediately
     const backupTicket = [...ticket];
     setTicket([]);
@@ -66,7 +78,8 @@ const POSPage = () => {
        id: 'pending', // ID temporal
        items: [...backupTicket],
        total: total,
-       created_at: new Date().toISOString()
+       created_at: new Date().toISOString(),
+       cliente: selectedClient ? selectedClient.nombre : 'Consumidor Final'
     });
 
     try {
@@ -74,20 +87,33 @@ const POSPage = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Debes iniciar sesión para cobrar");
 
-      // B. Crear cabecera de Venta
+      // B. Si es Cuenta Corriente, actualizar saldo del cliente
+      if (metodoPago === 'Cuenta Corriente' && selectedClient) {
+        const nuevoSaldo = (Number(selectedClient.saldo) || 0) + total;
+        
+        const { error: clienteError } = await supabase
+          .from('clientes')
+          .update({ saldo: nuevoSaldo })
+          .eq('id', selectedClient.id);
+          
+        if (clienteError) throw clienteError;
+      }
+
+      // C. Crear cabecera de Venta
       const { data: venta, error: errorVenta } = await supabase
         .from('ventas')
         .insert([{ 
           total: total, 
           metodo_pago: metodoPago,
-          usuario_id: user.id 
+          usuario_id: user.id,
+          cliente_id: selectedClient?.id || null 
         }])
         .select()
         .single();
 
       if (errorVenta) throw errorVenta;
 
-      // C. Preparar detalles
+      // D. Preparar detalles
       const detalles = backupTicket.map(item => ({
         venta_id: venta.id,
         producto_id: item.id,
@@ -96,23 +122,28 @@ const POSPage = () => {
         subtotal: item.cantidad * item.precio_venta
       }));
 
-      // D. Insertar detalles
+      // E. Insertar detalles
       const { error: errorDetalle } = await supabase.from('detalle_ventas').insert(detalles);
       if (errorDetalle) throw errorDetalle;
 
-      // E. (Opcional) Descontar Stock
+      // F. (Opcional) Descontar Stock
       for (const item of backupTicket) {
         await supabase.rpc('descontar_stock', { p_id: item.id, p_cantidad: item.cantidad });
       }
 
-      // F. Éxito Real
+      // G. Éxito Real
       toast.success("¡Venta registrada!");
       
       // Actualizar ID real para impresión
       setLastSale(prev => ({ ...prev, id: venta.id }));
       
+      // Resetear estado
+      setSelectedClient(null);
+      setMetodoPago('Efectivo');
+      
       // Recargar productos (Invalidar cache)
       queryClient.invalidateQueries(['productos']); // Actualiza inventario en todos lados
+      queryClient.invalidateQueries(['clientes']); // Actualiza saldos de clientes
 
     } catch (error) {
       console.error(error);
@@ -150,6 +181,10 @@ const POSPage = () => {
           metodoPago={metodoPago}
           setMetodoPago={setMetodoPago}
           removeFromTicket={removeFromTicket}
+          // Nuevas props
+          clientes={clientes}
+          selectedClient={selectedClient}
+          setSelectedClient={setSelectedClient}
         />
       </div>
 
