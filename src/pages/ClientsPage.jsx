@@ -9,6 +9,7 @@ const ClientsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [busqueda, setBusqueda] = useState('');
+  const [historyClient, setHistoryClient] = useState(null);
   
   const queryClient = useQueryClient();
 
@@ -23,6 +24,32 @@ const ClientsPage = () => {
       if (error) throw error;
       return data;
     }
+  });
+
+  // OBTENER HISTORIAL DE CLIENTE
+  const { data: history = [], isLoading: isLoadingHistory } = useQuery({
+    queryKey: ['clientHistory', historyClient?.id],
+    queryFn: async () => {
+      if (!historyClient) return [];
+      const { data, error } = await supabase
+        .from('ventas')
+        .select(`
+          *,
+          detalle_ventas (
+            cantidad,
+            precio_unitario,
+            descripcion,
+            productos (nombre)
+          )
+        `)
+        .eq('cliente_id', historyClient.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+        
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!historyClient
   });
 
   // GESTIONAR NUEVO/EDITAR
@@ -115,6 +142,12 @@ const ClientsPage = () => {
                                 <Phone className="w-3 h-3"/> {client.telefono}
                             </p>
                         )}
+                        <button 
+                          onClick={() => setHistoryClient(client)}
+                          className="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200 transition-colors"
+                        >
+                          Ver Historial
+                        </button>
                     </div>
                     <div className={`px-3 py-1 rounded-full font-black text-sm ${client.saldo > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
                         ${client.saldo.toLocaleString()}
@@ -145,7 +178,7 @@ const ClientsPage = () => {
         ))}
       </div>
 
-      {/* MODAL */}
+      {/* MODAL CLIENTE */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-zinc-900 border-4 border-black dark:border-white rounded-xl w-full max-w-md shadow-2xl p-6">
@@ -165,6 +198,62 @@ const ClientsPage = () => {
                     </div>
                 </form>
             </div>
+        </div>
+      )}
+
+      {/* MODAL HISTORIAL */}
+      {historyClient && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-zinc-900 border-4 border-black dark:border-white rounded-xl w-full max-w-2xl h-[80vh] shadow-2xl flex flex-col">
+            <div className="p-4 border-b-2 border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-gray-50 dark:bg-zinc-950 rounded-t-lg">
+              <div>
+                <h3 className="text-xl font-black dark:text-white">HISTORIAL DE VENTAS</h3>
+                <p className="text-sm text-gray-500">{historyClient.nombre}</p>
+              </div>
+              <button onClick={() => setHistoryClient(null)} className="text-gray-500 hover:text-black dark:hover:text-white">
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {isLoadingHistory ? (
+                <p className="text-center py-10">Cargando historial...</p>
+              ) : history.length === 0 ? (
+                <div className="text-center py-10 text-gray-500">
+                  <p>No hay ventas registradas para este cliente.</p>
+                </div>
+              ) : (
+                history.map(venta => (
+                  <div key={venta.id} className="border-2 border-gray-100 dark:border-zinc-800 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                       <div>
+                         <p className="font-bold text-sm text-black dark:text-white">
+                           {new Date(venta.created_at).toLocaleDateString()} {new Date(venta.created_at).toLocaleTimeString().slice(0,5)}
+                         </p>
+                         <span className={`text-xs px-2 py-0.5 rounded font-bold ${venta.metodo_pago === 'Cuenta Corriente' ? 'bg-red-100 text-red-600' : 'bg-gray-200 text-gray-700'}`}>
+                           {venta.metodo_pago}
+                         </span>
+                       </div>
+                       <p className="font-black text-lg text-black dark:text-white">${venta.total?.toLocaleString()}</p>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 space-y-1 border-t border-dashed border-gray-200 pt-2 mt-2">
+                      {venta.detalle_ventas?.map((d, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span>{d.cantidad} x {d.descripcion || d.productos?.nombre || 'Producto eliminado'}</span>
+                          <span>${(d.cantidad * d.precio_unitario).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="p-4 border-t-2 border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 rounded-b-lg text-right">
+              <AdminButton variant="outline" onClick={() => setHistoryClient(null)}>Cerrar</AdminButton>
+            </div>
+          </div>
         </div>
       )}
 

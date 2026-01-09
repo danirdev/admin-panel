@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'; // Keep useEffect for other things if needed, or remove if unused. It is used for total calculation.
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner'; 
 import { supabase } from '../supabase';
 import ProductGrid from '../components/pos/ProductGrid';
 import TicketSummary from '../components/pos/TicketSummary';
-
 import PrintTicket from '../components/pos/PrintTicket';
+import PrintCalculator from '../components/pos/PrintCalculator';
 
 const POSPage = () => {
   const [metodoPago, setMetodoPago] = useState('Efectivo');
@@ -14,11 +14,12 @@ const POSPage = () => {
   const [busqueda, setBusqueda] = useState('');
   const [lastSale, setLastSale] = useState(null); // Estado para la última venta (impresión)
   const [selectedClient, setSelectedClient] = useState(null); // Nuevo estado para cliente
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); // Estado para modal calculadora
   const queryClient = useQueryClient();
 
   // 1. CARGAR INVENTARIO (React Query)
   const { data: productos = [] } = useQuery({
-    queryKey: ['productos', ''], // Match InventoryPage empty search cache
+    queryKey: ['productos', ''], 
     queryFn: async () => {
       const { data, error } = await supabase.from('productos').select('*');
       if (error) throw error;
@@ -116,7 +117,8 @@ const POSPage = () => {
       // D. Preparar detalles
       const detalles = backupTicket.map(item => ({
         venta_id: venta.id,
-        producto_id: item.id,
+        producto_id: item.isManual ? null : item.id, // Null para manuales
+        descripcion: item.isManual ? item.nombre : null, // Guardar nombre como descripción
         cantidad: item.cantidad,
         precio_unitario: item.precio_venta,
         subtotal: item.cantidad * item.precio_venta
@@ -126,9 +128,11 @@ const POSPage = () => {
       const { error: errorDetalle } = await supabase.from('detalle_ventas').insert(detalles);
       if (errorDetalle) throw errorDetalle;
 
-      // F. (Opcional) Descontar Stock
+      // F. Descontar Stock (SOLO SI NO ES MANUAL)
       for (const item of backupTicket) {
-        await supabase.rpc('descontar_stock', { p_id: item.id, p_cantidad: item.cantidad });
+        if (!item.isManual) {
+           await supabase.rpc('descontar_stock', { p_id: item.id, p_cantidad: item.cantidad });
+        }
       }
 
       // G. Éxito Real
@@ -142,8 +146,8 @@ const POSPage = () => {
       setMetodoPago('Efectivo');
       
       // Recargar productos (Invalidar cache)
-      queryClient.invalidateQueries(['productos']); // Actualiza inventario en todos lados
-      queryClient.invalidateQueries(['clientes']); // Actualiza saldos de clientes
+      queryClient.invalidateQueries(['productos']); // Actualiza inventario
+      queryClient.invalidateQueries(['clientes']); // Actualiza saldos
 
     } catch (error) {
       console.error(error);
@@ -170,6 +174,7 @@ const POSPage = () => {
           addToTicket={addToTicket} 
           busqueda={busqueda} 
           setBusqueda={setBusqueda} 
+          onOpenCalculator={() => setIsCalculatorOpen(true)}
         />
 
         {/* Panel Derecho: Ticket */}
@@ -181,7 +186,7 @@ const POSPage = () => {
           metodoPago={metodoPago}
           setMetodoPago={setMetodoPago}
           removeFromTicket={removeFromTicket}
-          // Nuevas props
+          // Props para clientes
           clientes={clientes}
           selectedClient={selectedClient}
           setSelectedClient={setSelectedClient}
@@ -190,6 +195,42 @@ const POSPage = () => {
 
       {/* Ticket Invisible (Solo visible al imprimir) */}
       <PrintTicket venta={lastSale} />
+
+      {/* MODAL CALCULADORA */}
+      {isCalculatorOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+             <div className="bg-white dark:bg-zinc-900 w-full max-w-4xl h-[90vh] rounded-2xl border-4 border-black dark:border-white shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="bg-yellow-400 p-4 border-b-2 border-black flex justify-between items-center">
+                    <h3 className="font-black text-xl text-black flex items-center gap-2">
+                        CALCULADORA DE IMPRESIONES
+                    </h3>
+                    <button 
+                        onClick={() => setIsCalculatorOpen(false)}
+                        className="bg-black text-white w-8 h-8 rounded-full font-bold hover:bg-gray-800 transition-colors"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div className="flex-1 p-6 overflow-hidden">
+                    <PrintCalculator 
+                        onCancel={() => setIsCalculatorOpen(false)}
+                        onAddToTicket={(item) => {
+                            // Crear ID unico temp
+                            const calcItem = {
+                                ...item,
+                                id: `calc-${Date.now()}`,
+                                categoria: 'Servicios',
+                                stock_actual: 9999
+                            };
+                            addToTicket(calcItem, item.cantidad);
+                            setIsCalculatorOpen(false);
+                            // Toast ya manejado en addToTicket
+                        }}
+                    />
+                </div>
+             </div>
+        </div>
+      )}
     </>
   );
 };
