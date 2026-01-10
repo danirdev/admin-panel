@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { DollarSign, ShoppingBag, Package, TrendingUp, ChevronRight, BarChart3, PieChart } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, TrendingUp, ChevronRight, BarChart3, PieChart, Printer } from 'lucide-react';
 import { Card, Badge } from '../components/common/UI';
 import { supabase } from '../supabase';
 import { Link } from 'react-router-dom';
@@ -31,8 +31,20 @@ const DashboardPage = () => {
       // D. Ventas ultimos 7 dias (Para Grafico Barras)
       const { data: ventasSemana } = await supabase.from('ventas').select('created_at, total').gte('created_at', sevenDaysAgo);
 
-      // E. Top Productos (Para Grafico Torta) - Calculamos en cliente por ahora para no complicar con RPC
+      // E. Top Productos (Para Grafico Torta)
       const { data: detalleVentas } = await supabase.from('detalle_ventas').select('cantidad, producto:productos(nombre)').limit(200);
+
+      // F. Ventas de Fotocopias (Analisis de Texto)
+      // F. Ventas de Fotocopias (Analisis de Texto)
+      // Traemos ultimas 1000 items (JOIN con ventas para fecha)
+      const { data: ventasCopias, error: errorCopias } = await supabase
+        .from('detalle_ventas')
+        .select('cantidad, precio_unitario, descripcion, producto:productos(nombre), ventas(created_at)')
+        .order('created_at', { foreignTable: 'ventas', ascending: false })
+        .limit(1000);
+      
+      if (errorCopias) console.error("Error fetching ventasCopias:", errorCopias);
+      console.log("Analytics Data:", ventasCopias); // Debug log
 
       return {
         ventasHoy: cantidadVentas,
@@ -40,18 +52,18 @@ const DashboardPage = () => {
         itemsBajoStock: bajoStockCount || 0,
         ultimasVentas: ultimasVentas || [],
         ventasSemana: ventasSemana || [],
-        detalleVentas: detalleVentas || []
+        detalleVentas: detalleVentas || [],
+        ventasCopias: ventasCopias || [] 
       };
     }
   });
 
   // PROCESAMIENTO DE DATOS PARA GRAFICOS
   const chartData = useMemo(() => {
-    if (!stats) return { barData: [], pieData: [] };
+    if (!stats) return { barData: [], pieData: [], pieDataCopias: [], totalCopias: 0 };
 
     // 1. Bar Chart: Ventas por Dia
     const salesByDay = {};
-    // Inicializar ultimos 7 dias en 0
     for(let i=6; i>=0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -79,14 +91,50 @@ const DashboardPage = () => {
         .sort((a, b) => b.value - a.value)
         .slice(0, 5); // Top 5
 
-    return { barData, pieData };
+    // 3. Analisis de Copias
+    let totalCopias = 0;
+    let copiesBN = 0;
+    let copiesColor = 0;
+    let totalExtras = 0; // Anillados/Plastificados
+
+    stats.ventasCopias.forEach(v => {
+        // Combinar descripcion manual y nombre de producto para la busqueda
+        const descManual = v.descripcion?.toLowerCase() || '';
+        const nombreProducto = v.producto?.nombre?.toLowerCase() || '';
+        const fullDesc = `${descManual} ${nombreProducto}`;
+
+        // Palabras clave para detectar si es un servicio de impresion
+        const isPrintService = ['fotocopia', 'impresion', 'impresión', 'anillado', 'plastificado', 'copia'].some(k => fullDesc.includes(k));
+
+        if (!isPrintService) return;
+
+        const subtotal = v.cantidad * v.precio_unitario;
+        totalCopias += subtotal;
+        
+        if (fullDesc.includes('bn') || fullDesc.includes('b/n') || fullDesc.includes('negro')) {
+            copiesBN += v.cantidad;
+        } else if (fullDesc.includes('color')) {
+            copiesColor += v.cantidad;
+        }
+
+        if (fullDesc.includes('anillado') || fullDesc.includes('plastificado')) {
+            totalExtras += 1; 
+        }
+    });
+
+    const pieDataCopias = [
+        { name: 'B/N', value: copiesBN },
+        { name: 'Color', value: copiesColor },
+        { name: 'Extras', value: totalExtras }
+    ].filter(i => i.value > 0);
+
+    return { barData, pieData, pieDataCopias, totalCopias };
 
   }, [stats]);
   
   if (loading) {
      return <div className="p-10 font-bold text-xl">Cargando tablero...</div>;
   }
-
 
   // Formatear hora
   const formatTime = (isoString) => {
@@ -156,12 +204,52 @@ const DashboardPage = () => {
         </Card>
       </div>
 
-      {/* GRAFICOS ANALYTICS */}
+      {/* ANALYTICS FOTOCOPIAS */}
+      <h3 className="font-black text-2xl flex items-center gap-2 text-black dark:text-white mt-8">
+        <Printer className="w-8 h-8" /> ANÁLISIS DE IMPRESIONES
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="flex flex-col justify-center items-center p-6 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400">
+              <p className="text-gray-500 dark:text-gray-400 font-bold uppercase text-sm mb-2">Ingresos por Copias (Est.)</p>
+              <p className="text-4xl font-black text-yellow-600 dark:text-yellow-400">${chartData.totalCopias.toLocaleString()}</p>
+              <p className="text-xs text-gray-400 mt-2">Basado en descripciones de ventas</p>
+          </Card>
+
+          <Card className="md:col-span-2 h-64 flex flex-col">
+              <h4 className="font-bold mb-4 ml-4 dark:text-white">Distribución de Trabajo B/N vs Color</h4>
+              <div className="flex-1 w-full min-h-0 text-black dark:text-white">
+                <ResponsiveContainer width="100%" height="100%">
+                    <RePieChart>
+                        <Pie
+                            data={chartData.pieDataCopias}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                        >
+                            {chartData.pieDataCopias.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={['#000000', '#EC4899', '#10B981', '#3B82F6'][index % 4]} />
+                            ))}
+                        </Pie>
+                        <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" wrapperStyle={{}} />
+                        <Tooltip contentStyle={{borderRadius: '8px', border: '2px solid black'}} />
+                    </RePieChart>
+                </ResponsiveContainer>
+              </div>
+          </Card>
+      </div>
+
+      {/* GRAFICOS ANALYTICS GENERALES */}
+      <h3 className="font-black text-xl flex items-center gap-2 text-black dark:text-white mt-8">
+        <BarChart3 className="w-6 h-6" /> METRICAS GENERALES
+      </h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* GRÁFICO DE BARRAS */}
         <Card className="h-80 flex flex-col">
-            <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-black dark:text-white">
-                <BarChart3 className="w-5 h-5"/> VENTAS ÚLTIMA SEMANA
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-black dark:text-white">
+                Ventas Última Semana
             </h3>
             <div className="flex-1 w-full min-h-0 text-black dark:text-white">
                 <ResponsiveContainer width="100%" height="100%">
@@ -171,7 +259,7 @@ const DashboardPage = () => {
                         <YAxis tickFormatter={(value) => `$${value}`} tick={{fontSize: 12, fill: 'currentColor'}} axisLine={false} tickLine={false} />
                         <Tooltip 
                             cursor={{fill: '#f3f4f6'}}
-                            contentStyle={{borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px black'}}
+                            contentStyle={{borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px black', color: 'black'}}
                         />
                         <Bar dataKey="total" fill="#FBBF24" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -181,8 +269,8 @@ const DashboardPage = () => {
 
         {/* GRÁFICO DE TORTA */}
         <Card className="h-80 flex flex-col">
-            <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-black dark:text-white">
-                <PieChart className="w-5 h-5"/> TOP PRODUCTOS
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-black dark:text-white">
+                Productos Más Vendidos
             </h3>
             <div className="flex-1 w-full min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -202,7 +290,7 @@ const DashboardPage = () => {
                         </Pie>
                         <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{color: 'currentColor'}} />
                         <Tooltip 
-                             contentStyle={{borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px black'}}
+                             contentStyle={{borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px black', color: 'black'}}
                         />
                     </RePieChart>
                 </ResponsiveContainer>
